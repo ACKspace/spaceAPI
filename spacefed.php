@@ -3,22 +3,19 @@ class spacefed
 {
     public function updateSpaceApi( $_spaceAPI )
     {
-        return null;
-        /*
         $apiPart = Array();
-
         // Mandatory
-        $apiPart["spacenet"] = false;
+        $apiPart["spacenet"] = true;
         $apiPart["spacesaml"] = false;
         $apiPart["spacephone"] = true;
 
         // Optional
 
         // Custom
-        $apiPart["ext_customtype"] = "http://";
+        $apiPart["ext_spacephone_extension"] = 31979922;
+        $apiPart["ext_spacenet5g"] = false;
 
         return $apiPart;
-        */
     }
 }
 ?>

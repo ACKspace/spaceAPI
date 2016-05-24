@@ -14,6 +14,10 @@ class StateAbstraction
 	//
 	public function init()
     {
+        //if ( !function_exists( "mysqli_init" ) )
+        if ( !extension_loaded( "mysqli" ) )
+            return false;
+
         $this->dbConn = new mysqli($this->servername, $this->username, $this->password, $this->dbname);
 		// Check connection
 		if ($this->dbConn->connect_error) {
@@ -102,18 +106,21 @@ class StateAbstraction
 	    }
 	    else
 	    {
-		    $stmt->bind_param( "d", $_nState );
+		    $stmt->bind_param( "i", $_nState );
 		    $stmt->execute( );
+            $stmt->store_result( );
 	    }
 		
-		if($dbResult->num_rows == 0)
+		if($stmt->num_rows == 0)
 		{
             if ( getVar( "debug" ) !== false )
-                print_r( "no results" );
+                print_r( "no state description result" );
 			return null;
 		}
 
-        $description = $dbResult->fetch_assoc()[ "description" ];
+        $stmt->bind_result( $description, $empty );
+        $stmt->fetch();
+
         if ( getVar( "debug" ) !== false )
             print_r( $description );
 		return $description;

@@ -1,9 +1,11 @@
 <?php
 /*
-  Version : 1.1.1
+  Version : 1.1.2
   Author  : xopr
   Date    : 2015-07-06
   Changes : Added SensorAbstraction
+  Date    : 2016-11-05
+  Changes : Cleaned. Renamed functions. Prepared for beacon sensor
 */
 
 class sensors
@@ -12,69 +14,102 @@ class sensors
     {
         global $sensorAbstraction;
 
-        $sensors = $sensorAbstraction->getSensors();
-
-        // If we don't have (valid) sensor data, bail out
-        if ( !$sensors || !count( $sensors ) )
-          return null;
+        $sensors = $sensorAbstraction->getTemperatureSensors();
 
         $apiPart = Array();
-        // Nothing mandatory
+        // Mandatory
 
-        // Optional
+
+        // Temperature, Optional
         $temperature = Array();
-        foreach ( $sensors as $sensor )
+        if ( $sensors && count( $sensors ) )
         {
-            if ( getVar( "debug" ) !== false )
-                print_r( $sensor );
-
-            switch ( $sensor[ "unit" ] ) // TODO: type
+            foreach ( $sensors as $sensor )
             {
-                case "celcius":
-                case "°C":
-                    // Ugly hack, since the webserver doesn't support utf8
-                    // See http://allseeing-i.com/How-to-setup-your-PHP-site-to-use-UTF8
-                    $sensor[ "unit" ] = "°C"; // celcius
-
-                    // Copy over value, unit, location, name and description
-                    $apiSensor = Array(
-                        "value" => floatval( $sensor[ "value" ] ),
-                        "unit" => $sensor[ "unit" ],
-                        "location" => $sensor[ "location" ],
-                        "ext_lastchange" => (int)$sensor[ "updated" ]
-                    );
-
-                    if ( !is_null( $sensor[ "name" ] ) )
-                        $apiSensor[ "name" ] = $sensor[ "name" ];
-
-                    if ( !is_null( $sensor[ "description" ] ) )
-                        $apiSensor[ "description" ] = $sensor[ "description" ];
-
-                    $temperature[] = $apiSensor;
-                    break;
+                if ( getVar( "debug" ) !== false )
+                    print_r( $sensor );
+    
+                switch ( $sensor[ "unit" ] ) // TODO: type
+                {
+                    case "celcius":
+                    case "°C":
+                        // Ugly hack, since the webserver doesn't support utf8
+                        // See http://allseeing-i.com/How-to-setup-your-PHP-site-to-use-UTF8
+                        //$sensor[ "type" ] = "°C";
+                        $sensor[ "unit" ] = "°C"; // celcius
+    
+                        // Copy over value, unit, location, name and description
+                        $apiSensor = Array(
+                            "value" => floatval( $sensor[ "value" ] ),
+                            "unit" => $sensor[ "unit" ],
+                            "location" => $sensor[ "location" ],
+                            "ext_lastchange" => (int)$sensor[ "updated" ]
+                        );
+    
+                        if ( !is_null( $sensor[ "name" ] ) )
+                            $apiSensor[ "name" ] = $sensor[ "name" ];
+    
+                        if ( !is_null( $sensor[ "description" ] ) )
+                            $apiSensor[ "description" ] = $sensor[ "description" ];
+    
+                        $temperature[] = $apiSensor;
+                        break;
+                }
+    
             }
         }
-
         if ( count( $temperature ) )
             $apiPart[ "temperature" ] = $temperature;
+
+/*
+    [id] => 1
+    [lat] => 0
+    [lon] => 1
+    [accuracy] => 100001
+    [altitude] => 
+    [altitudeAccuracy] => 
+    [heading] => 
+    [speed] => 
+    [name] => HoaB
+    [description] => 
+    [updated] => 1462993990
+*/
+        $sensors = $sensorAbstraction->getBeaconSensors();
+        // Beacon, Optional
+        $beacon = Array();
+        if ( $sensors && count( $sensors ) )
+        {
+            foreach ( $sensors as $sensor )
+            {
+                if ( getVar( "debug" ) !== false )
+                    print_r( $sensor );
+
+                $apiSensor = Array(
+                    "location" => Array(
+                        "lat" => floatval( $sensor[ "lat" ] ), 
+                        "lon" => floatval( $sensor[ "lon" ] ), 
+                        "accuracy" => floatval( $sensor[ "accuracy" ] )
+                    ),
+                    "name" => $sensor[ "name" ],
+                    "ext_lastchange" => (int)$sensor[ "updated" ]
+                );
+
+                if ( !is_null( $sensor[ "description" ] ) )
+                    $apiSensor[ "description" ] = $sensor[ "description" ];
+
+                $beacon[] = $apiSensor;
+
+
+            }
+        }
+        if ( count( $beacon ) )
+            $apiPart[ "beacon" ] = $beacon;
 
         return $apiPart;
 
         /*
-        $apiPart = Array();
-        // Mandatory
 
         // Optional
-        $apiPart["temperature"] = [
-            Array(
-                "value"
-                "unit"
-                "location"
-                //"name"
-                //"description"
-            )
-        ];
-
         $apiPart["door_locked"] = [
             Array(
                 "value"
@@ -198,25 +233,58 @@ class sensors
         $arrValue   = getVar( "value" );
         $arrType    = getVar( "type" );
 
+        $arrLat         = getVar( "lat" );
+        $arrLon         = getVar( "lon" );
+        $arrAccuracy    = getVar( "accuracy" );
+
         if ( !is_array( $arrAddress ) )
-            $arrAddress = [ $arrAddress ];
+            $arrAddress = Array( $arrAddress );
         if ( !is_array( $arrValue ) )
-            $arrValue = [ $arrValue ];
+            $arrValue = Array( $arrValue );
         if ( !is_array( $arrType ) )
-            $arrType = [ $arrType ];
+            $arrType = Array( $arrType );
+
+        if ( !is_array( $arrLat ) )
+            $arrLat = Array( $arrLat );
+        if ( !is_array( $arrLon ) )
+            $arrLon = Array( $arrLon );
+        if ( !is_array( $arrAccuracy ) )
+            $arrAccuracy = Array( $arrAccuracy );
 
         $success = true;
 
         foreach ( $arrAddress as $idx => $address )
         {
-            if ( !isset( $arrValue[ $idx ] ) )
-                continue;
-
             if ( !isset( $arrType[ $idx ] ) )
                 continue;
 
-            if ( !$sensorAbstraction->updateSensor( $address, $arrValue[ $idx ], $arrType[ $idx ] ) )
-                $success = false;
+            switch ( $arrType[ $idx ] )
+            {
+                case "celcius":
+                case "°C":
+                    if ( !isset( $arrValue[ $idx ] ) )
+                        continue;
+
+                    if ( !$sensorAbstraction->updateTemperatureSensor( $address, $arrValue[ $idx ], $arrType[ $idx ] ) )
+                        $success = false;
+                    break;
+
+                case "beacon":
+                    if ( getVar( "debug" ) !== false )
+                        print_r( "UPDATING BEACON\n".$arrLat[ $idx ]."##".$arrLon[ $idx ]."##".$arrAccuracy[ $idx ]."##\n" );
+
+                    if ( !isset( $arrLat[ $idx ] ) )
+                        continue;
+                    if ( !isset( $arrLon[ $idx ] ) )
+                        continue;
+                    if ( !isset( $arrAccuracy[ $idx ] ) )
+                        continue;
+
+                    if ( !$sensorAbstraction->updateBeaconSensor( $arrLat[ $idx ], $arrLon[ $idx ], $arrAccuracy[ $idx ], null, null, null, null, $address ) )
+                        $success = false;
+                    break;
+
+            }
         }
 
         if ( getVar( "debug" ) !== false )

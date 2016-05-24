@@ -4,6 +4,18 @@
   Author  : xopr
   Date    : 2015-07-06
   Changes : Added SensorAbstraction
+  Date    : 2016-05-24
+  Changes : added prettyprint, listed parameters
+*/
+
+/*
+optional parameters:
+
+update=<module name>        : updates the given module if API key is valid. true defaults to "state"
+key=<APY_KEY>               : API key which allows updating modules
+compatibility={true|false}  : reorganises fields to make it compatible with spaceAPI versions 0.8-0.13
+prettyprint={true|false}    : adds indentation and newlines for ease of reading
+debug                       : adds some debug information (breaks JSON)
 */
 
 require "StateAbstraction.php";
@@ -180,7 +192,11 @@ if ( getVar( "debug" ) !== false )
   echo "<pre>";
 }
 
-echo json_encode( $spaceAPI, 64 | 128/*JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT*/ );
+/*JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT*/
+$flags = JSON_UNESCAPED_SLASHES;
+if ( getVar( "prettyprint" ) !== false )
+    $flags |= JSON_PRETTY_PRINT;
+echo json_encode( $spaceAPI, $flags );
 
 if ( getVar( "debug" ) !== false )
 {
@@ -216,4 +232,3 @@ function __autoload( $class )
 }
 
 ?>
-
