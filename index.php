@@ -21,7 +21,8 @@ debug                       : adds some debug information (breaks JSON)
 require "StateAbstraction.php";
 require "SensorAbstraction.php";
 
-const APIKEY = "<YOUR_OWN_GENERATED_API_KEY_HERE>";
+// Include API key
+include( $_SERVER['DOCUMENT_ROOT']."/../spaceAPI_config.php" );
 
 // Send headers immediately
 header('Content-Type: application/json');
@@ -35,6 +36,7 @@ $sensorAbstraction->init();
 
 // Hard-coded static info
 // See: http://spaceapi.net/documentation
+// Note: lat/lng was: 50.8924807,5.9712384: just outside of the building
 $spaceAPIjson = <<<EOF
 {
     "api" : "0.13",
@@ -44,8 +46,8 @@ $spaceAPIjson = <<<EOF
     "location" : 
     {
         "address" : "Kloosterweg 1, 6412 CN Heerlen",
-        "lat" : 50.8924807,
-        "lon" : 5.9712384,
+        "lat" : 50.8924622,
+        "lon" : 5.9712601,
         "ext_floor" : 4,
         "ext_room" : "L406"
     },
@@ -120,7 +122,7 @@ $update = getVar( "update" );
 if ( $update !== false )
 {
   // Verify the API key
-  if ( getVar( "key" ) !== APIKEY )
+  if ( getVar( "key" ) !== SPACEAPI_KEY )
   {
     // Delay against brute force
     sleep( 2 );
