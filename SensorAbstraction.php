@@ -8,24 +8,21 @@
 
 class SensorAbstraction
 {
-	// Database settings
-	private $servername = "<SERVER>";
-	private $username = "<DB_USER>";
-	private $password = "<DB_PASS>";
-	private $dbname = "<DB_NAME>";
-
     private $dbConn = null;
 	
 	//
 	// Public functions
 	//
-	public function init( )
+	public function init()
     {
         //if ( !function_exists( "mysqli_init" ) )
         if ( !extension_loaded( "mysqli" ) )
             return false;
 
-        $this->dbConn = new mysqli($this->servername, $this->username, $this->password, $this->dbname);
+        // Include database credentials
+        include( $_SERVER['DOCUMENT_ROOT']."/../spaceAPI_config.php" );
+
+        $this->dbConn = new mysqli($spaceApi_db_servername, $spaceApi_db_username, $spaceApi_db_password, $spaceApi_db_dbname);
 		// Check connection
 		if ($this->dbConn->connect_error) {
 			return false;
