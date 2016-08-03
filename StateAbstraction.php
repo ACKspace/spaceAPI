@@ -80,7 +80,7 @@ class StateAbstraction
 		}
 
         // Input validation
-		if( $_nState < 0 || $_nState > 1 || !is_numeric( $_nState ))
+		if( $_nState < 0 || $_nState > 2 || !is_numeric( $_nState ))
 		{
 			return false;
 		}
