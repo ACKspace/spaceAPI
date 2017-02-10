@@ -25,8 +25,11 @@ require "SensorAbstraction.php";
 include( $_SERVER['DOCUMENT_ROOT']."/../spaceAPI_config.php" );
 
 // Send headers immediately
-header('Content-Type: application/json');
-header('Content-Type: text/html; charset=utf-8');
+header( "Access-Control-Allow-Origin: *" );
+header( "Access-Control-Allow-Methods: GET" );
+header( "Content-Type: application/json" );
+header( 'Content-Type: text/javascript; charset="UTF-8"' );
+//header( "Content-Type: text/html; charset=utf-8" );
 
 $stateAbstraction = new StateAbstraction();
 $stateAbstraction->init();
