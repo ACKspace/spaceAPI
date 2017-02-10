@@ -395,8 +395,6 @@ class SensorAbstraction
 
     public function updateStock( $_strBarcode, $_Value, $_bAudit, $_nLocation, $_strUser )
     {
-        if ( getVar( "debug" ) !== false )
-
         // determine if we already have the barcode stored in our system
         $stmt = $this->dbConn->prepare(
             "SELECT item_id
