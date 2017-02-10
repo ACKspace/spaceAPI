@@ -242,6 +242,10 @@ class sensors
 
     public function updateDatabase( )
     {
+        // Audit/correct using this:
+        // https://ackspace.nl/spaceAPI/?key=API_KEY&address=premiumcola&update=sensors&type=audit&value=1&location=1&user=xopr
+        // https://ackspace.nl/spaceAPI/?key=API_KEY&address=premiumcola&update=sensors&type=correct&value=1
+
         global $sensorAbstraction;
 
         //Gather the information to load into the database
@@ -252,6 +256,9 @@ class sensors
         $arrLat         = getVar( "lat" );
         $arrLon         = getVar( "lon" );
         $arrAccuracy    = getVar( "accuracy" );
+
+        $arrUser        = getVar( "user" );     // string
+        $arrLocation    = getVar( "location" ); // id
 
         if ( !is_array( $arrAddress ) )
             $arrAddress = Array( $arrAddress );
@@ -266,6 +273,11 @@ class sensors
             $arrLon = Array( $arrLon );
         if ( !is_array( $arrAccuracy ) )
             $arrAccuracy = Array( $arrAccuracy );
+
+        if ( !is_array( $arrLocation ) )
+            $arrLocation = Array( $arrLocation );
+        if ( !is_array( $arrUser ) )
+            $arrUser = Array( $arrUser );
 
         $success = true;
 
@@ -300,30 +312,36 @@ class sensors
                         $success = false;
                     break;
 
-				case "audit":
+                case "audit":
                     if ( getVar( "debug" ) !== false )
-                        print_r( "AUDIT\n".$arrAddress[ $idx ]."##".$arrValue[ $idx ]."##\n" );
+                        print_r( "AUDIT\n".$arrAddress[ $idx ]."##".$arrValue[ $idx ]."##".$arrLocation[ $idx ]."##".$arrUser[ $idx ]."##\n" );
 
+                    // Barcode, amount, location id, user
                     if ( !isset( $arrAddress[ $idx ] ) )
                         continue;
                     if ( !isset( $arrValue[ $idx ] ) )
                         continue;
+                    if ( !isset( $arrLocation[ $idx ] ) )
+                        continue;
+                    if ( !isset( $arrUser[ $idx ] ) )
+                        continue;
 
-                    if ( !$sensorAbstraction->updateStock( $arrAddress[ $idx ], $arrValue[ $idx ], true ) )
+                    if ( !$sensorAbstraction->updateStock( $arrAddress[ $idx ], $arrValue[ $idx ], true, $arrLocation[ $idx ], $arrUser[ $idx ] ) )
                         $success = false;
                     break;
 
-				case "correct":
+                case "correct":
                     if ( getVar( "debug" ) !== false )
                         print_r( "CORRECT\n".$arrAddress[ $idx ]."##".$arrValue[ $idx ]."##\n" );
 
+                    // Barcode
                     if ( !isset( $arrAddress[ $idx ] ) )
                         continue;
                     if ( !isset( $arrValue[ $idx ] ) )
                         continue;
 
-					// Correct (not audit)
-                    if ( !$sensorAbstraction->updateStock( $arrAddress[ $idx ], $arrValue[ $idx ], false ) )
+                    // Correct (not audit, note that location and user are not used)
+                    if ( !$sensorAbstraction->updateStock( $arrAddress[ $idx ], $arrValue[ $idx ], false, null, null ) )
                         $success = false;
                     break;
             }
