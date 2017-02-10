@@ -345,5 +345,147 @@ class SensorAbstraction
         return null;
 	}
 
+
+    //
+    // Stock
+    //
+	public function getStock( )
+	{
+		if(is_null($this->dbConn))
+		{
+            if ( getVar( "debug" ) !== false )
+                print_r( "no connection" );
+
+			// Database connection not initialised
+			return null;
+		}
+
+        /* show the corrected amounts in single entity, respecting empty corrections, allowing visibility of all registered items, ignoring old corrections  */
+		$dbResult = $this->dbConn->query("
+            SELECT SUM( u.single_amount * s.amount ) + IF( c.last_changed >= MAX( s.date ), c.amount, 0 ) value, MIN( u.label ) unit, 'ACKspace' location, i.name
+            FROM items i
+            LEFT JOIN corrections c ON c.item_id=i.id
+            LEFT JOIN stock s ON s.item_id=i.id
+            LEFT JOIN units u ON s.unit_id=u.id
+            WHERE s.id IN ( SELECT MAX( s.id ) FROM stock s GROUP BY s.item_id, s.unit_id, s.location_id )
+            GROUP BY i.id
+			LIMIT 0,100
+		");
+
+		if( $dbResult->num_rows == 0 )
+		{
+            if ( getVar( "debug" ) !== false )
+                print_r( "no result" );
+
+			return null;
+		}
+		else
+		{
+            $sensors = Array();
+            while ( $sensor = $dbResult->fetch_assoc( ) )
+            {
+                $sensors[] = $sensor;
+            }
+			return $sensors;
+		}
+
+        // Failed
+        return null;
+	}
+
+	public function updateStock( $_strBarcode, $_Value, $_bAudit )
+	{
+		// determine if we already have the barcode stored in our system
+	    $stmt = $this->dbConn->prepare(
+		    "SELECT `ackspace_spaceAPI`.`item_id`
+				FROM barcodes b
+				WHERE b.barcode = '?'
+				LIMIT 1;
+			"
+	    );
+	
+	    if ( !$stmt )
+	    {
+		    return false;
+	    }
+	    else
+	    {
+		    $stmt->bind_param( "s", $_strName );
+		    $stmt->execute( );
+	    }
+
+		// No result? add the barcode as "Unknown product"
+		if( $dbResult->num_rows == 0 )
+		{
+			$stmt = $this->dbConn->prepare(
+				"INSERT INTO `ackspace_spaceAPI`.`items` ( name )
+					VALUES ( '?' );
+				";
+
+			if ( !$stmt )
+			{
+				return false;
+			}
+			else
+			{
+				$stmt->bind_param( "s", "Unknown product" );
+				$stmt->execute( );
+			}
+
+			$stmt = $this->dbConn->prepare(
+				"INSERT INTO `ackspace_spaceAPI`.`barcodes` ( barcode, item_id, unit_id )
+					VALUES ('?', LAST_INSERT_ID(), 1 );
+				";
+
+			if ( !$stmt )
+			{
+				return false;
+			}
+			else
+			{
+				$stmt->bind_param( "s", $_strBarcode );
+				$stmt->execute( );
+			}
+		}
+
+		// Actual audit/correction
+		if ( $_bAudit )
+		{
+			/* audit stock */
+			/*
+			INSERT INTO stock (item_id, unit_id, location_id, amount, destination_id, user)
+			SELECT b.item_id, b.unit_id, 1, 9, NULL, "xopr"
+			FROM barcodes b
+			WHERE b.barcode = "fles_bier"
+
+			INSERT INTO stock (item_id, unit_id, location_id, amount, destination_id, user)
+			SELECT b.item_id, b.unit_id, 1, 9, NULL, "xopr"
+			FROM barcodes b
+			WHERE b.barcode = "crate_mate"
+			*/
+
+			/* remove current item's corrections */
+			/*
+			DELETE c FROM corrections c
+			LEFT JOIN barcodes b ON b.item_id=c.item_id
+			WHERE b.barcode = "crate_mate"
+			*/
+		}
+		else
+		{
+			/* correct per barcode */
+			/* TODO: ignore value before audit date */
+			/*
+			UPDATE corrections c
+			LEFT JOIN barcodes b ON b.item_id=c.item_id
+			LEFT JOIN units u ON u.id=b.unit_id
+			SET c.amount = c.amount - u.single_amount
+			WHERE b.barcode = "crate_mate"
+			*/
+		}
+
+        return null;
+	}
+
 }
 ?>

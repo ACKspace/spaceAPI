@@ -105,6 +105,32 @@ class sensors
         if ( count( $beacon ) )
             $apiPart[ "beacon" ] = $beacon;
 
+        $sensors = $sensorAbstraction->getStock();
+        // beverage_supply, Optional
+        $beverage_supply = Array();
+        if ( $sensors && count( $sensors ) )
+        {
+            foreach ( $sensors as $sensor )
+            {
+                if ( getVar( "debug" ) !== false )
+                    print_r( $sensor );
+
+                $apiSensor = Array(
+                    "value"         => $sensor[ "value" ],
+                    "unit"          => $sensor[ "unit" ],
+                    "location"      => $sensor[ "location" ],
+                    "name"          => $sensor[ "name" ],
+                    "ext_lastchange" => (int)$sensor[ "updated" ]
+                );
+                if ( !is_null( $sensor[ "description" ] ) )
+                    $apiSensor[ "description" ] = $sensor[ "description" ];
+
+                $beverage_supply[] = $apiSensor;
+            }
+        }
+        if ( count( $beverage_supply ) )
+            $apiPart[ "beverage_supply" ] = $beverage_supply;
+
         return $apiPart;
 
         /*
@@ -143,16 +169,6 @@ class sensors
                 "value"
                 "unit"
                 "location"
-                //"name"
-                //"description"
-            )
-        ];
-
-        $apiPart["beverage_supply"] = [
-            Array(
-                "value"
-                "unit"
-                //"location"
                 //"name"
                 //"description"
             )
@@ -284,6 +300,32 @@ class sensors
                         $success = false;
                     break;
 
+				case "audit":
+                    if ( getVar( "debug" ) !== false )
+                        print_r( "AUDIT\n".$arrAddress[ $idx ]."##".$arrValue[ $idx ]."##\n" );
+
+                    if ( !isset( $arrAddress[ $idx ] ) )
+                        continue;
+                    if ( !isset( $arrValue[ $idx ] ) )
+                        continue;
+
+                    if ( !$sensorAbstraction->updateStock( $arrAddress[ $idx ], $arrValue[ $idx ], true ) )
+                        $success = false;
+                    break;
+
+				case "correct":
+                    if ( getVar( "debug" ) !== false )
+                        print_r( "CORRECT\n".$arrAddress[ $idx ]."##".$arrValue[ $idx ]."##\n" );
+
+                    if ( !isset( $arrAddress[ $idx ] ) )
+                        continue;
+                    if ( !isset( $arrValue[ $idx ] ) )
+                        continue;
+
+					// Correct (not audit)
+                    if ( !$sensorAbstraction->updateStock( $arrAddress[ $idx ], $arrValue[ $idx ], false ) )
+                        $success = false;
+                    break;
             }
         }
 
