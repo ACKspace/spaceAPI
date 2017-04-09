@@ -31,7 +31,7 @@ class StateAbstraction
 			"updated" => "0",
 			"created" => "0"
 		);
-		
+
 		if(is_null($this->dbConn))
 		{
 			// Database connection not initialised

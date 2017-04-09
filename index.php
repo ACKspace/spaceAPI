@@ -18,6 +18,13 @@ prettyprint={true|false}    : adds indentation and newlines for ease of reading
 debug                       : adds some debug information (breaks JSON)
 */
 
+// xopr: Enable debugging (when shit hits the fan again)
+if ( getVar( "debug" ) !== false )
+{
+    error_reporting( -1 );
+    ini_set( 'display_errors', 1 );
+}
+
 require "StateAbstraction.php";
 require "SensorAbstraction.php";
 
@@ -30,7 +37,6 @@ header( "Access-Control-Allow-Methods: GET" );
 header( "Content-Type: application/json" );
 header( 'Content-Type: text/javascript; charset="UTF-8"' );
 //header( "Content-Type: text/html; charset=utf-8" );
-
 
 $stateAbstraction = new StateAbstraction();
 $stateAbstraction->init();

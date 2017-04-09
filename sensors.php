@@ -105,6 +105,32 @@ class sensors
         if ( count( $beacon ) )
             $apiPart[ "beacon" ] = $beacon;
 
+        $sensors = $sensorAbstraction->getStock();
+        // beverage_supply, Optional
+        $beverage_supply = Array();
+        if ( $sensors && count( $sensors ) )
+        {
+            foreach ( $sensors as $sensor )
+            {
+                if ( getVar( "debug" ) !== false )
+                    print_r( $sensor );
+
+                $apiSensor = Array(
+                    "value"         => $sensor[ "value" ],
+                    "unit"          => $sensor[ "unit" ],
+                    "location"      => $sensor[ "location" ],
+                    "name"          => $sensor[ "name" ],
+                    "ext_lastchange" => (int)$sensor[ "updated" ]
+                );
+                if ( !is_null( $sensor[ "description" ] ) )
+                    $apiSensor[ "description" ] = $sensor[ "description" ];
+
+                $beverage_supply[] = $apiSensor;
+            }
+        }
+        if ( count( $beverage_supply ) )
+            $apiPart[ "beverage_supply" ] = $beverage_supply;
+
         return $apiPart;
 
         /*
@@ -143,16 +169,6 @@ class sensors
                 "value"
                 "unit"
                 "location"
-                //"name"
-                //"description"
-            )
-        ];
-
-        $apiPart["beverage_supply"] = [
-            Array(
-                "value"
-                "unit"
-                //"location"
                 //"name"
                 //"description"
             )
@@ -226,6 +242,10 @@ class sensors
 
     public function updateDatabase( )
     {
+        // Audit/correct using this:
+        // https://ackspace.nl/spaceAPI/?key=API_KEY&address=premiumcola&update=sensors&type=audit&value=1&location=1&user=xopr
+        // https://ackspace.nl/spaceAPI/?key=API_KEY&address=premiumcola&update=sensors&type=correct&value=1
+
         global $sensorAbstraction;
 
         //Gather the information to load into the database
@@ -236,6 +256,9 @@ class sensors
         $arrLat         = getVar( "lat" );
         $arrLon         = getVar( "lon" );
         $arrAccuracy    = getVar( "accuracy" );
+
+        $arrUser        = getVar( "user" );     // string
+        $arrLocation    = getVar( "location" ); // id
 
         if ( !is_array( $arrAddress ) )
             $arrAddress = Array( $arrAddress );
@@ -250,6 +273,11 @@ class sensors
             $arrLon = Array( $arrLon );
         if ( !is_array( $arrAccuracy ) )
             $arrAccuracy = Array( $arrAccuracy );
+
+        if ( !is_array( $arrLocation ) )
+            $arrLocation = Array( $arrLocation );
+        if ( !is_array( $arrUser ) )
+            $arrUser = Array( $arrUser );
 
         $success = true;
 
@@ -284,6 +312,38 @@ class sensors
                         $success = false;
                     break;
 
+                case "audit":
+                    if ( getVar( "debug" ) !== false )
+                        print_r( "AUDIT\n".$arrAddress[ $idx ]."##".$arrValue[ $idx ]."##".$arrLocation[ $idx ]."##".$arrUser[ $idx ]."##\n" );
+
+                    // Barcode, amount, location id, user
+                    if ( !isset( $arrAddress[ $idx ] ) )
+                        continue;
+                    if ( !isset( $arrValue[ $idx ] ) )
+                        continue;
+                    if ( !isset( $arrLocation[ $idx ] ) )
+                        continue;
+                    if ( !isset( $arrUser[ $idx ] ) )
+                        continue;
+
+                    if ( !$sensorAbstraction->updateStock( $arrAddress[ $idx ], $arrValue[ $idx ], true, $arrLocation[ $idx ], $arrUser[ $idx ] ) )
+                        $success = false;
+                    break;
+
+                case "correct":
+                    if ( getVar( "debug" ) !== false )
+                        print_r( "CORRECT\n".$arrAddress[ $idx ]."##".$arrValue[ $idx ]."##\n" );
+
+                    // Barcode
+                    if ( !isset( $arrAddress[ $idx ] ) )
+                        continue;
+                    if ( !isset( $arrValue[ $idx ] ) )
+                        continue;
+
+                    // Correct (not audit, note that location and user are not used)
+                    if ( !$sensorAbstraction->updateStock( $arrAddress[ $idx ], $arrValue[ $idx ], false, null, null ) )
+                        $success = false;
+                    break;
             }
         }
 
