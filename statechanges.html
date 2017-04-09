@@ -1,11 +1,11 @@
 <!DOCTYPE html>
 <html>
-<head>
+<head><meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
 
 <title></title>
 
 <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon" />
-<meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1" />
+
 <meta name="Keywords" content="x,y" />
 
 <meta name="Description" content="x,y" />
@@ -142,9 +142,15 @@ function displayStateChanges( _statechanges, _hours, _description, _currentTime,
     var end;
 
     // Iterate _statechanges and do a bucket sort (which can span over multiple hours)
+    var prevState = null;
+    var hiccupCount = 0;
     for ( var nState = 0; nState < _statechanges.length; nState++ )
     {
         state = _statechanges[ nState ];
+        if ( prevState !== state.state )
+            prevState = state.state;
+        else
+            hiccupCount++;
 
         created = new Date( state.created * 1000 );
         updated = new Date( state.updated * 1000 );
@@ -191,6 +197,12 @@ function displayStateChanges( _statechanges, _hours, _description, _currentTime,
 
     //addRatioTable( document.body, ratios, 168 * 52 / 12, "Last month's space state average" );
     addRatioTable( document.body, ratios, _hours, _description, _currentTime, _currentState );
+    if ( hiccupCount )
+    {
+        var node = document.createElement( "div" );
+        node.appendChild( document.createTextNode( "State hiccups: " + hiccupCount ) );
+        document.body.appendChild( node );
+    }
 }
 
 function addRatioTable( _parent, _ratios, _totalHours, _label, _currentTime, _currentState )

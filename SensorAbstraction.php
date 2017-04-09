@@ -9,11 +9,11 @@
 class SensorAbstraction
 {
     private $dbConn = null;
-	
-	//
-	// Public functions
-	//
-	public function init()
+    
+    //
+    // Public functions
+    //
+    public function init()
     {
         //if ( !function_exists( "mysqli_init" ) )
         if ( !extension_loaded( "mysqli" ) )
@@ -23,104 +23,104 @@ class SensorAbstraction
         include( $_SERVER['DOCUMENT_ROOT']."/../spaceAPI_config.php" );
 
         $this->dbConn = new mysqli($spaceApi_db_servername, $spaceApi_db_username, $spaceApi_db_password, $spaceApi_db_dbname);
-		// Check connection
-		if ($this->dbConn->connect_error) {
-			return false;
-		}
-		
-		return true;
-	}
-	
+        // Check connection
+        if ($this->dbConn->connect_error) {
+            return false;
+        }
+        
+        return true;
+    }
+    
     //
     // Temperature
     //
-	public function getTemperatureSensors( )
-	{
-		if(is_null($this->dbConn))
-		{
+    public function getTemperatureSensors( )
+    {
+        if(is_null($this->dbConn))
+        {
             if ( getVar( "debug" ) !== false )
                 print_r( "no connection" );
 
-			// Database connection not initialised
-			return null;
-		}
+            // Database connection not initialised
+            return null;
+        }
 
-		$dbResult = $this->dbConn->query("
-			SELECT `id`,
+        $dbResult = $this->dbConn->query("
+            SELECT `id`,
             `value`,
             `unit`,
             `location`,
             `name`,
             `description`,
             `type`,
-			UNIX_TIMESTAMP(`updated`) AS `updated`
-			FROM `probes`
-			ORDER BY `probes`.`id` DESC
-			LIMIT 0,100
-		");
+            UNIX_TIMESTAMP(`updated`) AS `updated`
+            FROM `probes`
+            ORDER BY `probes`.`id` DESC
+            LIMIT 0,100
+        ");
 
-		if( $dbResult->num_rows == 0 )
-		{
+        if( $dbResult->num_rows == 0 )
+        {
             if ( getVar( "debug" ) !== false )
                 print_r( "no result" );
 
-			return null;
-		}
-		else
-		{
+            return null;
+        }
+        else
+        {
             $sensors = Array();
             while ( $sensor = $dbResult->fetch_assoc( ) )
             {
                 $sensors[] = $sensor;
             }
-			return $sensors;
-		}
+            return $sensors;
+        }
 
         // Failed
         return null;
-	}
+    }
 
     public function getTemperatureSensorByName( $_name )
     {
-		if(is_null($this->dbConn))
-		{
+        if(is_null($this->dbConn))
+        {
             if ( getVar( "debug" ) !== false )
                 print_r( "no connection" );
 
-			// Database connection not initialised
-			return null;
-		}
+            // Database connection not initialised
+            return null;
+        }
 
-		$dbResult = $this->dbConn->query("
-			SELECT `id`,
+        $dbResult = $this->dbConn->query("
+            SELECT `id`,
             `value`,
             `unit`,
             `location`,
             `name`,
             `description`,
             `type`,
-			UNIX_TIMESTAMP(`updated`) AS `updated`
-			FROM `probes`
+            UNIX_TIMESTAMP(`updated`) AS `updated`
+            FROM `probes`
             WHERE `name` = '".$_name."'
-			ORDER BY `probes`.`id` DESC
-			LIMIT 0,1
-		");
+            ORDER BY `probes`.`id` DESC
+            LIMIT 0,1
+        ");
 
-		if( $dbResult->num_rows == 0 )
-		{
+        if( $dbResult->num_rows == 0 )
+        {
             if ( getVar( "debug" ) !== false )
                 print_r( "no result" );
 
-			return null;
-		}
-		else
-		{
-			return $dbResult->fetch_assoc();
-		}
+            return null;
+        }
+        else
+        {
+            return $dbResult->fetch_assoc();
+        }
     }
-	
-	public function updateTemperatureSensor( $_strAddress, $_nValue, $_strType )
-	{
+    
+    public function updateTemperatureSensor( $_strAddress, $_nValue, $_strType )
+    {
         $sensorData = $this->getTemperatureSensorByName( $_strAddress );
 
         if ( getVar( "debug" ) !== false )
@@ -132,61 +132,61 @@ class SensorAbstraction
         // Add the sensor data if we didn't find anything. Update otherwise.
         if ( $sensorData === null )
         {
-		    $stmt = $this->dbConn->prepare(
-			    "INSERT INTO  `ackspace_spaceAPI`.`probes` (
+            $stmt = $this->dbConn->prepare(
+                "INSERT INTO  `ackspace_spaceAPI`.`probes` (
                     `name`,
-				    `value`,
+                    `value`,
                     `unit`,
-				    `updated`
-			    )
-			    VALUES (
-				    ?,
-				    ?,
+                    `updated`
+                )
+                VALUES (
                     ?,
-				    CURRENT_TIMESTAMP
-			    );"
-		    );
-		
-		    if ( !$stmt )
-		    {
-			    return false;
-		    }
-		    else
-		    {
-			    $stmt->bind_param( "sds", $_strAddress, $_nValue, $_strType );
-			    $stmt->execute( );
-		    }
+                    ?,
+                    ?,
+                    CURRENT_TIMESTAMP
+                );"
+            );
+        
+            if ( !$stmt )
+            {
+                return false;
+            }
+            else
+            {
+                $stmt->bind_param( "sds", $_strAddress, $_nValue, $_strType );
+                $stmt->execute( );
+            }
 
-		    return true;
+            return true;
 
         } else {
-			// Change last updated time
+            // Change last updated time
             $q = "UPDATE `probes` SET `value` = ".$_nValue.", `unit` = '".$_strType."', `updated` = CURRENT_TIMESTAMP WHERE `id` = ".$sensorData["id"]." LIMIT 1";
-			$dbResult = $this->dbConn->query( $q );
+            $dbResult = $this->dbConn->query( $q );
 
             if ( getVar( "debug" ) !== false )
                 print_r( $q );
-			return $dbResult;
+            return $dbResult;
         }
         return null;
-	}
+    }
 
     //
     // Beacon
     //
-	public function getBeaconSensors( )
-	{
-		if(is_null($this->dbConn))
-		{
+    public function getBeaconSensors( )
+    {
+        if(is_null($this->dbConn))
+        {
             if ( getVar( "debug" ) !== false )
                 print_r( "no connection" );
 
-			// Database connection not initialised
-			return null;
-		}
+            // Database connection not initialised
+            return null;
+        }
 
-		$dbResult = $this->dbConn->query("
-			SELECT `id`,
+        $dbResult = $this->dbConn->query("
+            SELECT `id`,
             `lat`,
             `lon`,
             `accuracy`,
@@ -196,46 +196,46 @@ class SensorAbstraction
             `speed`,
             `name`,
             `description`,
-			UNIX_TIMESTAMP(`updated`) AS `updated`
-			FROM `beacons`
-			ORDER BY `beacons`.`id` DESC
-			LIMIT 0,100
-		");
+            UNIX_TIMESTAMP(`updated`) AS `updated`
+            FROM `beacons`
+            ORDER BY `beacons`.`id` DESC
+            LIMIT 0,100
+        ");
 
-		if( $dbResult->num_rows == 0 )
-		{
+        if( $dbResult->num_rows == 0 )
+        {
             if ( getVar( "debug" ) !== false )
                 print_r( "no result" );
 
-			return null;
-		}
-		else
-		{
+            return null;
+        }
+        else
+        {
             $sensors = Array();
             while ( $sensor = $dbResult->fetch_assoc( ) )
             {
                 $sensors[] = $sensor;
             }
-			return $sensors;
-		}
+            return $sensors;
+        }
 
         // Failed
         return null;
-	}
+    }
 
     public function getBeaconSensorByName( $_name )
     {
-		if(is_null($this->dbConn))
-		{
+        if(is_null($this->dbConn))
+        {
             if ( getVar( "debug" ) !== false )
                 print_r( "no connection" );
 
-			// Database connection not initialised
-			return null;
-		}
+            // Database connection not initialised
+            return null;
+        }
 
-		$dbResult = $this->dbConn->query("
-			SELECT `id`,
+        $dbResult = $this->dbConn->query("
+            SELECT `id`,
             `lat`,
             `lon`,
             `accuracy`,
@@ -245,28 +245,28 @@ class SensorAbstraction
             `speed`,
             `name`,
             `description`,
-			UNIX_TIMESTAMP(`updated`) AS `updated`
-			FROM `beacons`
+            UNIX_TIMESTAMP(`updated`) AS `updated`
+            FROM `beacons`
             WHERE `name` = '".$_name."'
-			ORDER BY `beacons`.`id` DESC
-			LIMIT 0,1
-		");
+            ORDER BY `beacons`.`id` DESC
+            LIMIT 0,1
+        ");
 
-		if( $dbResult->num_rows == 0 )
-		{
+        if( $dbResult->num_rows == 0 )
+        {
             if ( getVar( "debug" ) !== false )
                 print_r( "no result:".$_name );
 
-			return null;
-		}
-		else
-		{
-			return $dbResult->fetch_assoc();
-		}
+            return null;
+        }
+        else
+        {
+            return $dbResult->fetch_assoc();
+        }
     }
-	
-	public function updateBeaconSensor( $_nLat, $_nLon, $_nAccuracy, $_nAltitude, $_nAltitudeAccuracy, $_nHeading, $_nSpeed, $_strName )
-	{
+    
+    public function updateBeaconSensor( $_nLat, $_nLon, $_nAccuracy, $_nAltitude, $_nAltitudeAccuracy, $_nHeading, $_nSpeed, $_strName )
+    {
         $sensorData = $this->getBeaconSensorByName( $_strName );
 
         if ( getVar( "debug" ) !== false )
@@ -279,8 +279,8 @@ class SensorAbstraction
         // Add the sensor data if we didn't find anything. Update otherwise.
         if ( $sensorData === null )
         {
-		    $stmt = $this->dbConn->prepare(
-			    "INSERT INTO  `ackspace_spaceAPI`.`beacons` (
+            $stmt = $this->dbConn->prepare(
+                "INSERT INTO  `ackspace_spaceAPI`.`beacons` (
                     `lat`,
                     `lon`,
                     `accuracy`,
@@ -289,35 +289,35 @@ class SensorAbstraction
                     `heading`,
                     `speed`,
                     `name`,
-				    `updated`
-			    )
-			    VALUES (
-				    ?,
-				    ?,
-				    ?,
-				    ?,
+                    `updated`
+                )
+                VALUES (
                     ?,
-				    ?,
-				    ?,
                     ?,
-				    CURRENT_TIMESTAMP
-			    );"
-		    );
-		
-		    if ( !$stmt )
-		    {
-			    return false;
-		    }
-		    else
-		    {
-			    $stmt->bind_param( "ddididds", $_nLat, $_nLon, $_nAccuracy, $_nAltitude, $_nAltitudeAccuracy, $_nHeading, $_nSpeed, $_strName );
-			    $stmt->execute( );
-		    }
+                    ?,
+                    ?,
+                    ?,
+                    ?,
+                    ?,
+                    ?,
+                    CURRENT_TIMESTAMP
+                );"
+            );
+        
+            if ( !$stmt )
+            {
+                return false;
+            }
+            else
+            {
+                $stmt->bind_param( "ddididds", $_nLat, $_nLon, $_nAccuracy, $_nAltitude, $_nAltitudeAccuracy, $_nHeading, $_nSpeed, $_strName );
+                $stmt->execute( );
+            }
 
-		    return true;
+            return true;
 
         } else {
-			// Change last updated time
+            // Change last updated time
             if ( !$_nAltitude )
                 $_nAltitude = "NULL";
             if ( !$_nAltitudeAccuracy )
@@ -336,32 +336,32 @@ class SensorAbstraction
                                       "`speed` = ".$_nSpeed.",".
                                       "`name` = '".$_strName."',".
                                       "`updated` = CURRENT_TIMESTAMP WHERE `id` = ".$sensorData["id"]." LIMIT 1";
-			$dbResult = $this->dbConn->query( $q );
+            $dbResult = $this->dbConn->query( $q );
 
             if ( getVar( "debug" ) !== false )
                 print_r( $q );
-			return $dbResult;
+            return $dbResult;
         }
         return null;
-	}
+    }
 
 
     //
     // Stock
     //
-	public function getStock( )
-	{
-		if(is_null($this->dbConn))
-		{
+    public function getStock( )
+    {
+        if(is_null($this->dbConn))
+        {
             if ( getVar( "debug" ) !== false )
                 print_r( "no connection" );
 
-			// Database connection not initialised
-			return null;
-		}
+            // Database connection not initialised
+            return null;
+        }
 
         /* show the corrected amounts in single entity, respecting empty corrections, allowing visibility of all registered items, ignoring old corrections  */
-		$dbResult = $this->dbConn->query("
+        $dbResult = $this->dbConn->query("
             SELECT SUM( u.single_amount * s.amount ) + IF( c.last_changed >= MAX( s.date ), c.amount, 0 ) value, MIN( u.label ) unit, 'ACKspace' location, i.name
             FROM items i
             LEFT JOIN corrections c ON c.item_id=i.id
@@ -369,123 +369,199 @@ class SensorAbstraction
             LEFT JOIN units u ON s.unit_id=u.id
             WHERE s.id IN ( SELECT MAX( s.id ) FROM stock s GROUP BY s.item_id, s.unit_id, s.location_id )
             GROUP BY i.id
-			LIMIT 0,100
-		");
+            LIMIT 0,100
+        ");
 
-		if( $dbResult->num_rows == 0 )
-		{
+        if( $dbResult->num_rows == 0 )
+        {
             if ( getVar( "debug" ) !== false )
                 print_r( "no result" );
 
-			return null;
-		}
-		else
-		{
+            return null;
+        }
+        else
+        {
             $sensors = Array();
             while ( $sensor = $dbResult->fetch_assoc( ) )
             {
                 $sensors[] = $sensor;
             }
-			return $sensors;
-		}
+            return $sensors;
+        }
 
         // Failed
         return null;
-	}
+    }
 
-	public function updateStock( $_strBarcode, $_Value, $_bAudit )
-	{
-		// determine if we already have the barcode stored in our system
-	    $stmt = $this->dbConn->prepare(
-		    "SELECT `ackspace_spaceAPI`.`item_id`
-				FROM barcodes b
-				WHERE b.barcode = '?'
-				LIMIT 1;
-			"
-	    );
-	
-	    if ( !$stmt )
-	    {
-		    return false;
-	    }
-	    else
-	    {
-		    $stmt->bind_param( "s", $_strName );
-		    $stmt->execute( );
-	    }
+    public function updateStock( $_strBarcode, $_Value, $_bAudit, $_nLocation, $_strUser )
+    {
+        // determine if we already have the barcode stored in our system
+        $stmt = $this->dbConn->prepare(
+            "SELECT item_id
+                FROM `ackspace_spaceAPI`.`barcodes` b
+                WHERE b.barcode = ?
+                LIMIT 1
+            "
+        );
+    
+        $num_rows = 0;
 
-		// No result? add the barcode as "Unknown product"
-		if( $dbResult->num_rows == 0 )
-		{
-			$stmt = $this->dbConn->prepare(
-				"INSERT INTO `ackspace_spaceAPI`.`items` ( name )
-					VALUES ( '?' );
-				";
+        if ( !$stmt )
+        {
+            if ( getVar( "debug" ) !== false )
+                print_r( "Query error: barcodes\n" );
+            return false;
+        }
+        else
+        {
+            $stmt->bind_param( "s", $_strBarcode );
+            $stmt->execute( );
 
-			if ( !$stmt )
-			{
-				return false;
-			}
-			else
-			{
-				$stmt->bind_param( "s", "Unknown product" );
-				$stmt->execute( );
-			}
+            /* store result */
+            $stmt->store_result();
+            $num_rows = $stmt->num_rows;
 
-			$stmt = $this->dbConn->prepare(
-				"INSERT INTO `ackspace_spaceAPI`.`barcodes` ( barcode, item_id, unit_id )
-					VALUES ('?', LAST_INSERT_ID(), 1 );
-				";
+            // Close off previous statement
+            $stmt->close( );
+        }
 
-			if ( !$stmt )
-			{
-				return false;
-			}
-			else
-			{
-				$stmt->bind_param( "s", $_strBarcode );
-				$stmt->execute( );
-			}
-		}
+        if ( getVar( "debug" ) !== false )
+        {
+            print_r( "num rows:" );
+            var_dump( $num_rows );
+        }
 
-		// Actual audit/correction
-		if ( $_bAudit )
-		{
-			/* audit stock */
-			/*
-			INSERT INTO stock (item_id, unit_id, location_id, amount, destination_id, user)
-			SELECT b.item_id, b.unit_id, 1, 9, NULL, "xopr"
-			FROM barcodes b
-			WHERE b.barcode = "fles_bier"
+        // No result? add the barcode as "Unknown product", single unit (id 1)
+        if( $num_rows == 0 )
+        {
 
-			INSERT INTO stock (item_id, unit_id, location_id, amount, destination_id, user)
-			SELECT b.item_id, b.unit_id, 1, 9, NULL, "xopr"
-			FROM barcodes b
-			WHERE b.barcode = "crate_mate"
-			*/
+            $stmt = $this->dbConn->prepare(
+                "INSERT INTO `ackspace_spaceAPI`.`items` (`name`) VALUES (?)"
+            );
 
-			/* remove current item's corrections */
-			/*
-			DELETE c FROM corrections c
-			LEFT JOIN barcodes b ON b.item_id=c.item_id
-			WHERE b.barcode = "crate_mate"
-			*/
-		}
-		else
-		{
-			/* correct per barcode */
-			/* TODO: ignore value before audit date */
-			/*
-			UPDATE corrections c
-			LEFT JOIN barcodes b ON b.item_id=c.item_id
-			LEFT JOIN units u ON u.id=b.unit_id
-			SET c.amount = c.amount - u.single_amount
-			WHERE b.barcode = "crate_mate"
-			*/
-		}
+            if ( !$stmt )
+            {
+                if ( getVar( "debug" ) !== false )
+                    print_r( "Query error: items\n" );
+                return false;
+            }
+            else
+            {
+                $product = "Unknown product";
+                $stmt->bind_param( "s", $product );
+                $stmt->execute( );
 
-        return null;
-	}
+                // Close off previous statement
+                $stmt->close( );
+            }
+
+            $stmt = $this->dbConn->prepare(
+                "INSERT INTO `ackspace_spaceAPI`.`barcodes` ( barcode, item_id, unit_id )
+                    VALUES ( ?, LAST_INSERT_ID(), 1 )
+                "
+            );
+
+            if ( !$stmt )
+            {
+                if ( getVar( "debug" ) !== false )
+                    print_r( "Query error: barcodes last_insert_id\n" );
+                return false;
+            }
+            else
+            {
+                $stmt->bind_param( "s", $_strBarcode );
+                $stmt->execute( );
+
+                // Close off previous statement
+                $stmt->close( );
+            }
+        }
+
+        // Actual audit/correction
+        if ( $_bAudit )
+        {
+            /* audit stock */
+            $stmt = $this->dbConn->prepare(
+                "INSERT INTO `ackspace_spaceAPI`.`stock` (item_id, unit_id, location_id, amount, destination_id, user)
+                    SELECT b.item_id, b.unit_id, ?, ?, ?, ?
+                    FROM `ackspace_spaceAPI`.`barcodes` b
+                    WHERE b.barcode = ?
+                "
+            );
+
+            if ( !$stmt )
+            {
+                if ( getVar( "debug" ) !== false )
+                    print_r( "Query error: stock\n" );
+                return false;
+            }
+            else
+            {
+                // Location id, amount, destination id, user, barcode
+                $destination = null;
+                $stmt->bind_param( "iiiss", $_nLocation, $_Value, $destination, $_strUser, $_strBarcode );
+                $stmt->execute( );
+
+                // Close off previous statement
+                $stmt->close( );
+            }
+
+            /* remove current item's corrections */
+            $stmt = $this->dbConn->prepare(
+                "DELETE FROM c USING corrections c INNER JOIN barcodes b ON b.item_id=c.item_id WHERE b.barcode = ?"
+            );
+
+            if ( !$stmt )
+            {
+                if ( getVar( "debug" ) !== false )
+                    print_r( "Query error: clear corrections\n" );
+                return false;
+            }
+            else
+            {
+                $stmt->bind_param( "s", $_strBarcode );
+                $stmt->execute( );
+
+                // Close off previous statement
+                $stmt->close( );
+            }
+        }
+        else
+        {
+            /* correct per barcode */
+            /* TODO: ignore value before audit date */
+            $stmt = $this->dbConn->prepare(
+                "INSERT INTO `ackspace_spaceAPI`.`corrections` ( item_id, amount ) 
+                SELECT b.item_id, -1
+                FROM barcodes b
+                LEFT JOIN units u ON u.id=b.unit_id
+                WHERE b.barcode = ?
+                ON DUPLICATE KEY UPDATE amount = amount - u.single_amount
+                "
+            );
+
+            if ( !$stmt )
+            {
+                if ( getVar( "debug" ) !== false )
+                    print_r( "Query error: corrections\n" );
+                return false;
+            }
+            else
+            {
+                $stmt->bind_param( "s", $_strBarcode );
+                $stmt->execute( );
+
+                // Close off previous statement
+                $stmt->close( );
+            }
+        }
+
+        // Unknown
+        //return null;
+
+        // Succeeded
+        return true;
+    }
 
 }
 ?>
