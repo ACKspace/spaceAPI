@@ -38,7 +38,6 @@ header( "Content-Type: application/json" );
 header( 'Content-Type: text/javascript; charset="UTF-8"' );
 //header( "Content-Type: text/html; charset=utf-8" );
 
-
 $stateAbstraction = new StateAbstraction();
 $stateAbstraction->init();
 
