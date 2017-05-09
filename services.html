@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+<title></title>
+
+<meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1" />
+<meta name="Keywords" content="x,y" />
+
+<meta name="Description" content="x,y" />
+
+<meta http-equiv="pragma" content="no-cache" />
+<meta http-equiv="cache-control" content="no-cache" />
+<meta http-equiv="expires" content="-1" />
+<style type="text/css" media="screen,all">
+.service
+{
+    display: inline-block;
+    padding: 1em;
+    margin: 0.1em;
+}
+
+.service > div
+{
+    display: block;
+    text-align: center;
+}
+
+
+</style>
+<script type="text/javascript">
+<!--
+function window_load()
+{
+    setInterval( loadServiceStates, 600000 );
+    loadServiceStates();
+}
+
+function loadServiceStates()
+{
+    fetch( (window.location.protocol === "file:" ? "https:" : "") + "//ackspace.nl/spaceAPI/" )
+        .then( response => response.json() )
+        .then( response => response.sensors.service )
+        .then( services =>
+    {
+        var serviceOverview = {};
+
+        // Compile info
+        services.forEach( service =>
+        {
+            if ( !( service.name in serviceOverview ) )
+                serviceOverview[ service.name ] = { source: [], score: 0, status: "", latency: null, timestamp: 0, emojiStatus: "" };
+            let serviceEntry = serviceOverview[ service.name ];
+
+            var timestamp = new Date( service.ext_lastchange * 1000 );
+            serviceEntry.source.push(
+            {
+                service : service.source,
+                status: service.status,
+                ext_lastchange: service.ext_lastchange,
+                timestamp: timestamp,
+                latency: service.latency || null
+            } );
+
+            if ( service.status === null )
+                serviceEntry.emojiStatus += "~";
+            else if ( service.status )
+                serviceEntry.emojiStatus += "+";
+            else
+                serviceEntry.emojiStatus += "-";
+
+            if ( timestamp > serviceEntry.timestamp )
+                serviceEntry.timestamp = timestamp;
+
+            let delta = new Date() - service.ext_lastchange * 1000;
+            // After 21 minutes or really high ping the service is considered failing
+            if ( delta > 1260000 || service.latency > 35000 )
+            {
+                console.log( "long delay" );
+                service.status = false;
+            }
+            else if ( delta > 660000 || service.latency > 20000 )
+            {
+                console.log( "delay" );
+
+                // After 11 minutes or relatively high ping, we lower all values
+                if ( service.status === null )
+                    service.status = false;
+                else if ( service.status )
+                    service.status === null;
+            }
+
+            // Assume only 1 latency item
+            if ( service.latency )
+                serviceEntry.latency = service.latency;
+
+            // Recalculate every time we have a next entry
+            serviceEntry.score += (service.status ? 10 : ( service.status === null ) ? 3 : 0);
+            let avgScore = Math.ceil( serviceEntry.score / serviceEntry.source.length );
+            if ( avgScore < 3 )
+            {
+                serviceEntry.status = "error";
+                serviceEntry.color = "red";
+            }
+            else if ( avgScore < 6 )
+            {
+                serviceEntry.status = "critical";
+                serviceEntry.color = "orange";
+            }
+            else if ( avgScore < 8 )
+            {
+                serviceEntry.status = "warning";
+                serviceEntry.color = "yellow";
+            }
+            else
+            {
+                serviceEntry.status = "ok";
+                serviceEntry.color = "lightgreen";
+            }
+        } );
+
+        // Empty node
+        let stateContainer = document.querySelector( ".states" )
+        stateContainer.innerHTML = "";
+        Object.keys( serviceOverview ).forEach( service =>
+        {
+            let serviceNode = document.createElement( "span" );
+            let nameNode = serviceNode.appendChild( document.createElement( "div" ) );
+            let stateNode = serviceNode.appendChild( document.createElement( "div" ) );
+            let emojiStateNode = serviceNode.appendChild( document.createElement( "div" ) );
+            let pingNode = serviceNode.appendChild( document.createElement( "div" ) );
+
+            serviceNode.title = serviceOverview[ service ].timestamp;
+
+            serviceNode.style.backgroundColor = serviceOverview[ service ].color;
+            serviceNode.className = "service";
+            nameNode.textContent = service;
+            stateNode.textContent = serviceOverview[ service ].status;
+            emojiStateNode.textContent = serviceOverview[ service ].emojiStatus;
+
+            if ( serviceOverview[ service ].latency )
+                pingNode.textContent = (serviceOverview[ service ].latency / 1000 ) + "ms";
+            else
+                pingNode.innerHTML = "&infin;";
+
+            stateContainer.appendChild( serviceNode );
+        } );
+    } );
+}
+
+window.addEventListener( "load", window_load, false );
+//-->
+</script>
+
+</head>
+
+<body>
+Note: this page is written using EcmaScript6 syntax; it might not work in your browser..
+<div class="states"></div>
+
+</body>
+</html>
