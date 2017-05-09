@@ -110,16 +110,12 @@ class StateAbstraction
 		
 		if($stmt->num_rows == 0)
 		{
-            if ( getVar( "debug" ) !== false )
-                print_r( "no state description result" );
 			return null;
 		}
 
         $stmt->bind_result( $description, $empty );
         $stmt->fetch();
 
-        if ( getVar( "debug" ) !== false )
-            print_r( $description );
 		return $description;
     }
 

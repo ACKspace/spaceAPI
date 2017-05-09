@@ -19,6 +19,8 @@ class sensors
         $apiPart = Array();
         // Mandatory
 
+        if ( getVar( "debug" ) !== false )
+            echo "======= update sensors =======\n";
 
         // Temperature, Optional
         $temperature = Array();
@@ -131,6 +133,34 @@ class sensors
         if ( count( $beverage_supply ) )
             $apiPart[ "beverage_supply" ] = $beverage_supply;
 
+        $sensors = $sensorAbstraction->getServiceSensors();
+        // Service, Optional
+        $service = Array();
+        if ( $sensors && count( $sensors ) )
+        {
+            foreach ( $sensors as $sensor )
+            {
+                if ( getVar( "debug" ) !== false )
+                    print_r( $sensor );
+
+                $apiSensor = Array(
+                    "name" => $sensor[ "name" ],
+                    "source" => $sensor[ "source" ],
+                    "status" => $sensor[ "status" ],
+                    "ext_lastchange" => (int)$sensor[ "updated" ]
+                );
+
+                if ( !is_null( $sensor[ "latency" ] ) )
+                    $apiSensor[ "latency" ] = $sensor[ "latency" ];
+
+                $service[] = $apiSensor;
+
+
+            }
+        }
+        if ( count( $service ) )
+            $apiPart[ "service" ] = $service;
+
         return $apiPart;
 
         /*
@@ -169,6 +199,16 @@ class sensors
                 "value"
                 "unit"
                 "location"
+                //"name"
+                //"description"
+            )
+        ];
+
+        $apiPart["beverage_supply"] = [
+            Array(
+                "value"
+                "unit"
+                //"location"
                 //"name"
                 //"description"
             )
@@ -242,10 +282,6 @@ class sensors
 
     public function updateDatabase( )
     {
-        // Audit/correct using this:
-        // https://ackspace.nl/spaceAPI/?key=API_KEY&address=premiumcola&update=sensors&type=audit&value=1&location=1&user=xopr
-        // https://ackspace.nl/spaceAPI/?key=API_KEY&address=premiumcola&update=sensors&type=correct&value=1
-
         global $sensorAbstraction;
 
         //Gather the information to load into the database
@@ -256,9 +292,6 @@ class sensors
         $arrLat         = getVar( "lat" );
         $arrLon         = getVar( "lon" );
         $arrAccuracy    = getVar( "accuracy" );
-
-        $arrUser        = getVar( "user" );     // string
-        $arrLocation    = getVar( "location" ); // id
 
         if ( !is_array( $arrAddress ) )
             $arrAddress = Array( $arrAddress );
@@ -273,11 +306,6 @@ class sensors
             $arrLon = Array( $arrLon );
         if ( !is_array( $arrAccuracy ) )
             $arrAccuracy = Array( $arrAccuracy );
-
-        if ( !is_array( $arrLocation ) )
-            $arrLocation = Array( $arrLocation );
-        if ( !is_array( $arrUser ) )
-            $arrUser = Array( $arrUser );
 
         $success = true;
 
@@ -312,38 +340,11 @@ class sensors
                         $success = false;
                     break;
 
-                case "audit":
-                    if ( getVar( "debug" ) !== false )
-                        print_r( "AUDIT\n".$arrAddress[ $idx ]."##".$arrValue[ $idx ]."##".$arrLocation[ $idx ]."##".$arrUser[ $idx ]."##\n" );
-
-                    // Barcode, amount, location id, user
-                    if ( !isset( $arrAddress[ $idx ] ) )
-                        continue;
-                    if ( !isset( $arrValue[ $idx ] ) )
-                        continue;
-                    if ( !isset( $arrLocation[ $idx ] ) )
-                        continue;
-                    if ( !isset( $arrUser[ $idx ] ) )
-                        continue;
-
-                    if ( !$sensorAbstraction->updateStock( $arrAddress[ $idx ], $arrValue[ $idx ], true, $arrLocation[ $idx ], $arrUser[ $idx ] ) )
+                case "service":
+                    if ( !$this->handleSensors( $address ) )
                         $success = false;
                     break;
 
-                case "correct":
-                    if ( getVar( "debug" ) !== false )
-                        print_r( "CORRECT\n".$arrAddress[ $idx ]."##".$arrValue[ $idx ]."##\n" );
-
-                    // Barcode
-                    if ( !isset( $arrAddress[ $idx ] ) )
-                        continue;
-                    if ( !isset( $arrValue[ $idx ] ) )
-                        continue;
-
-                    // Correct (not audit, note that location and user are not used)
-                    if ( !$sensorAbstraction->updateStock( $arrAddress[ $idx ], $arrValue[ $idx ], false, null, null ) )
-                        $success = false;
-                    break;
             }
         }
 
@@ -353,5 +354,76 @@ class sensors
         // Update the values in the database
         return $success;
     }
+
+
+
+
+/*
+heartbeat every 5 minutes from 'address'
+
+source address: spacenode, nlnode, denode
+budgetphone=>1
+ackspace=>1
+    latency: 8920
+voipbuster=>1
+    latency: 16660
+intervoip=>1
+    latency: 16880
+slackspace=>1
+hackspace=>
+stackspace=>
+
+db:
+service, source, status, latency, timestamp
+
+extra insert:
+source, source, true, latency, timestamp
+
+
+       // address, budgetphone, voipbuster, cheapconnect, speakup, intervoip, ackspace, slackspace, hackspace, stackspace, intervoip_lag, voipbuster_lag, ackspace_lag
+
+*/
+    private function handleSensors( $_address )
+    {
+        global $sensorAbstraction;
+
+        if ( getVar( "debug" ) !== false )
+            print_r( "\nUPDATING SERVICE\n". $_address ."\n" );
+        
+        $success = true;
+
+        // 'Fake' ourselves; since we can connect to the webserver, we can state we're online
+        if ( !$sensorAbstraction->updateServiceSensor( $_address, $_address, true, null ) )
+            $success = false;
+
+        // Fetch all (tri-state) boolean fields and look for a corresponding _lag field 
+        foreach ( $_GET as $service => $state )
+        {
+            $state = strtolower( $state );
+
+            if ( $state === "true" )
+                $state = true;
+            elseif ( $state === "false" )
+                $state = false;
+            elseif ( $state === "null" )
+                $state = null;
+            else
+                continue;
+                
+            $latency = null;
+
+            echo $service . "=>" . $state ."\n";
+
+            if ( array_key_exists( $service."_lag", $_GET ) )
+                $latency = $_GET[ $service."_lag" ];
+                
+            if ( !$sensorAbstraction->updateServiceSensor( $service, $_address, $state, $latency ) )
+                $success = false;
+                
+        }
+
+        return $success;
+    }
+
 }
 ?>

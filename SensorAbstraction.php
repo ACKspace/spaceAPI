@@ -39,7 +39,7 @@ class SensorAbstraction
         if(is_null($this->dbConn))
         {
             if ( getVar( "debug" ) !== false )
-                print_r( "no connection" );
+                print_r( "no connection\n" );
 
             // Database connection not initialised
             return null;
@@ -62,7 +62,7 @@ class SensorAbstraction
         if( $dbResult->num_rows == 0 )
         {
             if ( getVar( "debug" ) !== false )
-                print_r( "no result" );
+                print_r( "temperature: no result\n" );
 
             return null;
         }
@@ -85,7 +85,7 @@ class SensorAbstraction
         if(is_null($this->dbConn))
         {
             if ( getVar( "debug" ) !== false )
-                print_r( "no connection" );
+                print_r( "no connection\n" );
 
             // Database connection not initialised
             return null;
@@ -109,7 +109,7 @@ class SensorAbstraction
         if( $dbResult->num_rows == 0 )
         {
             if ( getVar( "debug" ) !== false )
-                print_r( "no result" );
+                print_r( "Temperature no result:".$_name."\n" );
 
             return null;
         }
@@ -205,7 +205,7 @@ class SensorAbstraction
         if( $dbResult->num_rows == 0 )
         {
             if ( getVar( "debug" ) !== false )
-                print_r( "no result" );
+                print_r( "Beacon: no result\n" );
 
             return null;
         }
@@ -255,7 +255,7 @@ class SensorAbstraction
         if( $dbResult->num_rows == 0 )
         {
             if ( getVar( "debug" ) !== false )
-                print_r( "no result:".$_name );
+                print_r( "Beacon: no result:".$_name."\n" );
 
             return null;
         }
@@ -375,7 +375,7 @@ class SensorAbstraction
         if( $dbResult->num_rows == 0 )
         {
             if ( getVar( "debug" ) !== false )
-                print_r( "no result" );
+                print_r( "stock: no result\n" );
 
             return null;
         }
@@ -561,6 +561,155 @@ class SensorAbstraction
 
         // Succeeded
         return true;
+    }
+
+    //
+    // Service
+    //
+    public function getServiceSensors( )
+    {
+        if(is_null($this->dbConn))
+        {
+            if ( getVar( "debug" ) !== false )
+                print_r( "no connection" );
+
+            // Database connection not initialised
+            return null;
+        }
+
+        $dbResult = $this->dbConn->query("
+            SELECT `id`,
+            `name`,
+            `source`,
+            `status`,
+            `latency`,
+            UNIX_TIMESTAMP(`updated`) AS `updated`
+            FROM `services`
+            WHERE id IN (SELECT MAX(`id`) FROM `services` GROUP BY name, source ORDER BY `id` DESC)
+            LIMIT 0,100
+        ");
+
+        if( $dbResult->num_rows == 0 )
+        {
+            if ( getVar( "debug" ) !== false )
+                print_r( "Service: no result\n" );
+
+            return null;
+        }
+        else
+        {
+            $sensors = Array();
+            while ( $sensor = $dbResult->fetch_assoc( ) )
+            {
+                $sensors[] = $sensor;
+            }
+            return $sensors;
+        }
+
+        // Failed
+        return null;
+    }
+
+    public function getServiceSensorByName( $_name, $_source )
+    {
+        /*
+        if(is_null($this->dbConn))
+        {
+            if ( getVar( "debug" ) !== false )
+                print_r( "no connection" );
+
+            // Database connection not initialised
+            return null;
+        }
+
+        $dbResult = $this->dbConn->query("
+            SELECT `id`,
+            `name`,
+            `source`,
+            `status`,
+            `latency`,
+            UNIX_TIMESTAMP(`updated`) AS `updated`
+            FROM `services`
+            WHERE `name` = '".$_name."'
+            AND `source` = '".$_source."'
+            ORDER BY `id` DESC
+            LIMIT 0,1
+        ");
+
+        if( $dbResult->num_rows == 0 )
+        {
+            if ( getVar( "debug" ) !== false )
+                print_r( "Service: no result:".$_name."\n" );
+
+            return null;
+        }
+        else
+        {
+            return $dbResult->fetch_assoc();
+        }
+        */
+
+        return null;
+    }
+    
+    public function updateServiceSensor( $_strName, $_strSource, $_bState, $_nLatency )
+    {
+        $sensorData = $this->getServiceSensorByName( $_strName, $_strSource );
+
+        if ( getVar( "debug" ) !== false )
+        {
+            print_r( "sensor data:" );
+            print_r( $sensorData );
+            print_r( "EOD" );
+        }
+
+        // Add the sensor data if we didn't find anything. Update otherwise.
+        if ( $sensorData === null )
+        {
+            $stmt = $this->dbConn->prepare(
+                "INSERT INTO  `ackspace_spaceAPI`.`services` (
+                    `name`,
+                    `source`,
+                    `status`,
+                    `latency`,
+                    `updated`
+                )
+                VALUES (
+                    ?,
+                    ?,
+                    ?,
+                    ?,
+                    CURRENT_TIMESTAMP
+                );"
+            );
+        
+            if ( !$stmt )
+            {
+                return false;
+            }
+            else
+            {
+                $stmt->bind_param( "ssii", $_strName, $_strSource, $_bState, $_nLatency );
+                $stmt->execute( );
+            }
+
+            return true;
+
+        } else {
+            // Change last updated time
+
+            $q = "UPDATE `services` SET `name` = ".$_strName.",".
+                                      "`source` = ".$_strSource.",".
+                                      "`status` = ".$_bState.",".
+                                      "`latency` = ".$_nLatency.",".
+                                      "`updated` = CURRENT_TIMESTAMP WHERE `id` = ".$sensorData["id"]." LIMIT 1";
+            $dbResult = $this->dbConn->query( $q );
+
+            if ( getVar( "debug" ) !== false )
+                print_r( $q );
+            return $dbResult;
+        }
+        return null;
     }
 
 }

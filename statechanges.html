@@ -69,6 +69,24 @@ function window_load()
     {
         // Year
         displayStateChanges( [].concat.apply([], _data.map( function( _d ){ return _d.states } ) ), 168 * 52, "Last year's space state average" );
+        
+        return Promise.all( _data.concat(   loadStateChanges( { uri: prefix + "statechanges.php?month=12" } ),
+                                            loadStateChanges( { uri: prefix + "statechanges.php?month=13" } ),
+                                            loadStateChanges( { uri: prefix + "statechanges.php?month=14" } ),
+                                            loadStateChanges( { uri: prefix + "statechanges.php?month=15" } ),
+                                            loadStateChanges( { uri: prefix + "statechanges.php?month=16" } ),
+                                            loadStateChanges( { uri: prefix + "statechanges.php?month=17" } ),
+                                            loadStateChanges( { uri: prefix + "statechanges.php?month=18" } ),
+                                            loadStateChanges( { uri: prefix + "statechanges.php?month=19" } ),
+                                            loadStateChanges( { uri: prefix + "statechanges.php?month=20" } ),
+                                            loadStateChanges( { uri: prefix + "statechanges.php?month=21" } ),
+                                            loadStateChanges( { uri: prefix + "statechanges.php?month=22" } ),
+                                            loadStateChanges( { uri: prefix + "statechanges.php?month=23" } )
+                                        ) );
+    } ).then( function( _data )
+    {
+        // 2 Years
+        displayStateChanges( [].concat.apply([], _data.map( function( _d ){ return _d.states } ) ), 168 * 52, "Two year's space state average" );
     } );
 
     /*

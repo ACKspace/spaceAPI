@@ -38,6 +38,7 @@ header( "Content-Type: application/json" );
 header( 'Content-Type: text/javascript; charset="UTF-8"' );
 //header( "Content-Type: text/html; charset=utf-8" );
 
+
 $stateAbstraction = new StateAbstraction();
 $stateAbstraction->init();
 
@@ -208,11 +209,27 @@ if ( getVar( "debug" ) !== false )
 $flags = JSON_UNESCAPED_SLASHES;
 if ( getVar( "prettyprint" ) !== false )
     $flags |= JSON_PRETTY_PRINT;
-echo json_encode( $spaceAPI, $flags );
+if ( getVar( "debug" ) !== false )
+    echo "======= JSON SPACE API =======\n";
+
+$result = json_encode( $spaceAPI, $flags );
+
+if ( $result === FALSE )
+{
+    $flags |= JSON_PARTIAL_OUTPUT_ON_ERROR;
+    $spaceAPI[ "error" ] = "parser error";
+    $result = json_encode( $spaceAPI, $flags );
+
+    if ( $result === FALSE )
+        die( '{"error":"parser error"}' );
+}
+
+echo $result;
 
 if ( getVar( "debug" ) !== false )
 {
-  var_dump( $spaceAPI );
+    echo "======= RAW SPACE API =======\n";
+    var_dump( $spaceAPI );
     echo "</pre>";
 }
 
