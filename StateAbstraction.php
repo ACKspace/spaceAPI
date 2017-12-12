@@ -3,10 +3,10 @@ class StateAbstraction
 {
     private $dbConn = null;
 	
-	//
-	// Public functions
-	//
-	public function init()
+    //
+    // Public functions
+    //
+    public function init()
     {
         //if ( !function_exists( "mysqli_init" ) )
         if ( !extension_loaded( "mysqli" ) )
@@ -16,16 +16,17 @@ class StateAbstraction
         include( $_SERVER['DOCUMENT_ROOT']."/../spaceAPI_config.php" );
 
         $this->dbConn = new mysqli($spaceApi_db_servername, $spaceApi_db_username, $spaceApi_db_password, $spaceApi_db_dbname);
-		// Check connection
-		if ($this->dbConn->connect_error) {
-			return false;
-		}
-		
-		return true;
-	}
+        // Check connection
+        if ($this->dbConn->connect_error) {
+            return false;
+        }
+
+        $this->dbConn->set_charset( "utf8" );
+        return true;
+    }
 	
-	public function getState()
-	{
+    public function getState()
+    {
 		$fallBack = $array = array(
 			"state" => "2",
 			"updated" => "0",
