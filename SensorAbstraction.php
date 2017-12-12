@@ -28,6 +28,7 @@ class SensorAbstraction
             return false;
         }
         
+        $this->dbConn->set_charset( "utf8" );
         return true;
     }
     
