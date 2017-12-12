@@ -21,7 +21,7 @@ class StateAbstraction
             return false;
         }
 
-        $this->dbConn->set_charset( "utf8" );
+        $this->dbConn->set_charset( "utf8mb4" );
         return true;
     }
 	
