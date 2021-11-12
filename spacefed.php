@@ -7,13 +7,13 @@ class spacefed
         // Mandatory
         $apiPart["spacenet"] = true;
         $apiPart["spacesaml"] = false;
-        $apiPart["spacephone"] = true;
+        $apiPart["spacephone"] = false;
 
         // Optional
 
         // Custom
         $apiPart["ext_spacephone_extension"] = 31979922;
-        $apiPart["ext_spacenet5g"] = false;
+        $apiPart["ext_spacenet5g"] = true;
 
         return $apiPart;
     }
