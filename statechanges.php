@@ -73,7 +73,7 @@
 
 
 
-function getVar( $_name, $_bGet = true, $_bPost = false, $_bSession = false )
+function getVar( $_name, $_bGet = true, $_bPost = true, $_bSession = false )
 {
     if ( $_bGet && array_key_exists( $_name, $_GET ) )
       return $_GET[ $_name ];
