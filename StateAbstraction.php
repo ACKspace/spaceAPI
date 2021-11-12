@@ -2,7 +2,7 @@
 class StateAbstraction
 {
     private $dbConn = null;
-	
+
     //
     // Public functions
     //
@@ -24,7 +24,7 @@ class StateAbstraction
         $this->dbConn->set_charset( "utf8mb4" );
         return true;
     }
-	
+
     public function getState()
     {
 		$fallBack = $array = array(
@@ -38,7 +38,7 @@ class StateAbstraction
 			// Database connection not initialised
 			return $fallBack;
 		}
-		
+
         // No external input: no need to prepare statement
 		$dbResult = $this->dbConn->query("
 			SELECT `state`,
@@ -48,7 +48,7 @@ class StateAbstraction
 			ORDER BY `statechanges`.`id` DESC
 			LIMIT 0,1
 		");
-		
+
 		if($dbResult->num_rows == 0)
 		{
 			return $fallBack;
@@ -56,7 +56,7 @@ class StateAbstraction
 		else
 		{
 			$stateInfo = $dbResult->fetch_assoc();
-			
+
 			//check if timed out
 			if((time() - $stateInfo['updated']) > 60)
 			{
@@ -81,6 +81,9 @@ class StateAbstraction
 		}
 
         // Input validation
+		if( $_nState < 0 )
+		    $_nState = 2 + $_nState;
+
 		if( $_nState < 0 || $_nState > 2 || !is_numeric( $_nState ))
 		{
 			return false;
@@ -108,7 +111,7 @@ class StateAbstraction
 		    $stmt->execute( );
             $stmt->store_result( );
 	    }
-		
+
 		if($stmt->num_rows == 0)
 		{
 			return null;
@@ -120,27 +123,36 @@ class StateAbstraction
 		return $description;
     }
 
-	public function updateState( $_nState )
+	public function updateState( $_nNewState )
 	{
-        // Input validation
-		if( $_nState < 0 || $_nState > 1 || !is_numeric( $_nState ))
-		{
+	    // Handle -1 and -2 as 'permanent state', make sure the timestamp updates with every update, and the state resets after a 'normal' updatestate
+
+		// Input validation
+		$nNewStateOrg = (int)$_nNewState;
+		if( $_nNewState < 0 )
+			$_nNewState = 2 + $_nNewState;
+
+		// Input validation
+		if( $_nNewState < 0 || $_nNewState > 1 || !is_numeric( $_nNewState ))
 			return false;
-		}
-		
-		$currentState = $this->getRawState();
-		
-		if($currentState['state'] == $_nState)
+
+		$nCurrentState = $this->getRawState()['state'];
+		$nCurrentStateOrg = (int)$nCurrentState;
+		if( $nCurrentState < 0 )
+			$nCurrentState = 2 + $nCurrentState;
+
+		// Update if the new state matches the current state or if the current state is 'permanent', does NOT match the new state
+		if( ($nCurrentStateOrg == $nNewStateOrg) || ($nCurrentStateOrg < 0 && $nCurrentState != $_nNewState) )
 		{
 			// Change last updated time
-            // No external input: no need to prepare statement
+			// No external input: no need to prepare statement
 			$dbResult = $this->dbConn->query("UPDATE `statechanges` SET  `updated` = CURRENT_TIMESTAMP ORDER BY id DESC LIMIT 1");
 			return $dbResult;
 		}
 		else
 		{
 			// Set new state
-			return $this->setState( $_nState );
+			return $this->setState( $nNewStateOrg );
 		}
 	}
 
@@ -156,10 +168,8 @@ class StateAbstraction
 		}
 
         // Input validation
-		if( $_nState < 0 || $_nState > 1 || !is_numeric( $_nState ))
-		{
+		if( $_nState < -2 || $_nState > 1 || !is_numeric( $_nState ))
 			return false;
-		}
 
 		$stmt = $this->dbConn->prepare(
 			"INSERT INTO  `ackspace_spaceAPI`.`statechanges` (
@@ -170,12 +180,12 @@ class StateAbstraction
 			)
 			VALUES (
 				NULL ,
-				?, 
-				CURRENT_TIMESTAMP , 
+				?,
+				CURRENT_TIMESTAMP ,
 				CURRENT_TIMESTAMP
 			);"
 		);
-		
+
 		if (!$stmt)
 		{
 			return false;
@@ -183,13 +193,13 @@ class StateAbstraction
 		else
 		{
 			$stmt->bind_param( "i", $_nState );
-			
+
 			$stmt->execute();
 		}
-		
+
 		return true;
 	}
-	
+
 	private function getRawState()
 	{
 		$fallBack = $array = array(
@@ -197,13 +207,13 @@ class StateAbstraction
 			"updated" => "0",
 			"created" => "0"
 		);
-		
+
 		if(is_null($this->dbConn))
 		{
 			// Database connection not initialised
 			return $fallBack;
 		}
-		
+
         // No external input: no need to prepare statement
 		$dbResult = $this->dbConn->query("
 			SELECT `state`,
@@ -213,7 +223,7 @@ class StateAbstraction
 			ORDER BY `statechanges`.`id` DESC
 			LIMIT 0,1
 		");
-		
+
 		if($dbResult->num_rows == 0)
 		{
 			return $fallBack;
@@ -221,7 +231,7 @@ class StateAbstraction
 		else
 		{
 			$stateInfo = $dbResult->fetch_assoc();
-			
+
 			return $stateInfo;
 		}
 	}

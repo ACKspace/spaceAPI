@@ -31,12 +31,14 @@ class state
 
         switch( $state[ "state" ] )
         {
+          case "-2":
           case "0":
             // Closed
             $apiPart["open"] = false; // Mandatory
             $apiPart["message"] = STR_CLOSED;
             break;
 
+          case "-1":
           case "1":
             // Open
             $apiPart["open"] = true; // Mandatory
@@ -68,11 +70,11 @@ class state
         // Read the state parameter
         switch ( getVar( "state" ) )
         {
+          case "-2":
+          case "-1":
           case "0":
-            return $stateAbstraction->updateState( 0 );
-
           case "1":
-            return $stateAbstraction->updateState( 1 );
+            return $stateAbstraction->updateState( (int)getVar( "state" ) );
         }
 
         // State not handled correctly
