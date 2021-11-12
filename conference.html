@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+<title></title>
+
+<meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1" />
+<meta name="Keywords" content="x,y" />
+
+<meta name="Description" content="x,y" />
+
+<meta http-equiv="pragma" content="no-cache" />
+<meta http-equiv="cache-control" content="no-cache" />
+<meta http-equiv="expires" content="-1" />
+<style type="text/css" media="screen,all">
+.service
+{
+    box-sizing: border-box;
+    display: inline-block;
+    padding: 1em;
+    margin: 0.1em;
+    width: 100%;
+}
+
+.service > div
+{
+    display: block;
+    text-align: center;
+}
+
+
+</style>
+<script type="text/javascript">
+<!--
+var g_timeCompensation = null;
+var g_serviceStatus = null;
+
+function window_load()
+{
+    // Load state every 10 seconds
+    setInterval( loadServiceStates, 10000 );
+    loadServiceStates();
+
+    // Update box every second
+    setInterval( updateServiceStatus, 1000 );
+    updateServiceStatus();
+}
+
+function findSurrogatePair( _point )
+{
+  // assumes _point > 0xffff
+  var offset = _point - 0x10000,
+      lead = 0xd800 + (offset >> 10),
+      trail = 0xdc00 + (offset & 0x3ff);
+  return [lead.toString(16), trail.toString(16)];
+}
+
+function relativeTime( _ms )
+{
+    var time = _ms / 1000;
+    var suffix = "second";
+
+    if ( time > 31536000 )
+    {
+        time /= 31536000;
+        suffix = "year"
+    }
+    else if ( time > 2592000 )
+    {
+        time /= 2592000;
+        suffix = "month"
+    }
+    else if ( time > 604800 )
+    {
+        time /= 604800;
+        suffix = "week"
+    }
+    else if ( time > 86400 )
+    {
+        time /= 86400;
+        suffix = "day"
+    }
+    else if ( time > 3600 )
+    {
+        time /= 3600;
+        suffix = "hour"
+    }
+    else if ( time > 60 )
+    {
+        time /= 60;
+        suffix = "minute"
+    }
+
+    time |= 0;
+    if ( time !== 1 )
+        suffix += "s";
+    return time + " " + suffix + " ago";
+}
+
+function box( _service )
+{
+    let serviceNode = document.createElement( "span" );
+
+    let nameNode = serviceNode.appendChild( document.createElement( "div" ) );
+    let stateNode = serviceNode.appendChild( document.createElement( "div" ) );
+    let emojiStateNode = serviceNode.appendChild( document.createElement( "div" ) );
+    let pingNode = serviceNode.appendChild( document.createElement( "div" ) );
+
+    serviceNode.title = _service.timestamp;
+    serviceNode.style.backgroundColor = _service.color;
+    serviceNode.className = "service";
+
+    nameNode.textContent = _service.name;
+    stateNode.textContent = _service.status;
+    emojiStateNode.textContent = _service.emojiStatus;
+
+    pingNode.textContent = _service.latency
+
+    document.querySelector( ".states" ).appendChild( serviceNode );
+}
+
+function loadServiceStates()
+{
+    fetch( (window.location.protocol === "file:" ? "https:" : "") + "//ackspace.nl/spaceAPI/" )
+        .then( response => response.json() )
+        .then( response => response.sensors.service )
+        .then( services =>
+    {
+        // Compile info
+        g_serviceStatus = services.filter( service => { return service.name === "eventradio" } );
+        g_serviceStatus = g_serviceStatus.length ? g_serviceStatus[ 0 ] : null;
+    } );
+}
+
+function updateServiceStatus()
+{
+    document.querySelector( ".states" ).innerHTML = "";
+    var service = {
+            ext_lastchange: 0,
+            latency: "",
+            name: "eventradio",
+            source: "nlnode",
+            status: "no conference found",
+            color: "red"
+        };
+
+    if ( g_serviceStatus )
+    {
+        service.timestamp = new Date( g_serviceStatus.ext_lastchange * 1000 );
+
+        if ( g_timeCompensation === null )
+            g_timeCompensation = new Date() - service.timestamp;
+
+        var delta = new Date() - service.timestamp;
+        if ( delta < 0 )
+            g_timeCompensation = delta;
+
+        service.status = relativeTime( new Date() - service.timestamp - g_timeCompensation );
+
+        if ( g_serviceStatus.latency > 100 )
+        {
+            service.color = "blanchedalmond";
+            service.emojiStatus = "\ud83d\udd25"; // :fire:
+        }
+        else if ( g_serviceStatus.latency > 10 )
+        {
+            service.color = "cornflowerblue";
+            service.emojiStatus = "\ud83d\udce2"; // :loudspeaker:
+        }
+        else if ( g_serviceStatus.latency > 0 )
+        {
+            service.color = "lightskyblue";
+            service.emojiStatus = "\u260E"; // :telephone:
+        }
+        else
+        {
+            // idle
+            service.color = "";
+            service.emojiStatus = "";
+        }
+        service.latency = g_serviceStatus.latency + (g_serviceStatus.latency === 1 ? " member" : " members");
+    }
+
+    box( service );
+}
+
+window.addEventListener( "load", window_load, false );
+//-->
+</script>
+
+</head>
+
+<body>
+Note: this page is written using EcmaScript6 syntax; it might not work in your browser..
+<div class="states"></div>
+</body>
+</html>
