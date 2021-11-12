@@ -14,7 +14,11 @@ class sensors
     {
         global $sensorAbstraction;
 
-        $sensors = $sensorAbstraction->getTemperatureSensors();
+        $sensors = $sensorAbstraction->getSensors( "temperature" );
+        if ( getVar( "debug" ) !== false )
+        {
+            var_dump( $sensors );
+        }
 
         $apiPart = Array();
         // Mandatory
@@ -24,22 +28,22 @@ class sensors
 
         // Temperature, Optional
         $temperature = Array();
+        $power_consumption = Array();
         if ( $sensors && count( $sensors ) )
         {
             foreach ( $sensors as $sensor )
             {
                 if ( getVar( "debug" ) !== false )
                     print_r( $sensor );
-    
-                switch ( $sensor[ "unit" ] ) // TODO: type
+
+                switch ( $sensor[ "type" ] ) // TODO: type
                 {
-                    case "celcius":
-                    case "°C":
+                    case "temperature":
                         // Ugly hack, since the webserver doesn't support utf8
                         // See http://allseeing-i.com/How-to-setup-your-PHP-site-to-use-UTF8
                         //$sensor[ "type" ] = "°C";
                         $sensor[ "unit" ] = "°C"; // celcius
-    
+
                         // Copy over value, unit, location, name and description
                         $apiSensor = Array(
                             "value" => floatval( $sensor[ "value" ] ),
@@ -47,49 +51,68 @@ class sensors
                             "location" => $sensor[ "location" ],
                             "ext_lastchange" => (int)$sensor[ "updated" ]
                         );
-    
+
                         if ( !is_null( $sensor[ "name" ] ) )
                             $apiSensor[ "name" ] = $sensor[ "name" ];
-    
+
                         if ( !is_null( $sensor[ "description" ] ) )
                             $apiSensor[ "description" ] = $sensor[ "description" ];
-    
+
                         $temperature[] = $apiSensor;
                         break;
+
+                    case "power_consumption":
+                        $apiSensor = Array(
+                            "value" => floatval( $sensor[ "value" ] ),
+                            "unit" => $sensor[ "unit" ],
+                            "location" => $sensor[ "location" ],
+                            "ext_lastchange" => (int)$sensor[ "updated" ]
+                        );
+
+                        if ( !is_null( $sensor[ "name" ] ) )
+                            $apiSensor[ "name" ] = $sensor[ "name" ];
+
+                        if ( !is_null( $sensor[ "description" ] ) )
+                            $apiSensor[ "description" ] = $sensor[ "description" ];
+
+                        $power_consumption[] = $apiSensor;
+                        break;
                 }
-    
+
             }
         }
         if ( count( $temperature ) )
             $apiPart[ "temperature" ] = $temperature;
+        if ( count( $power_consumption ) )
+            $apiPart[ "power_consumption" ] = $power_consumption;
 
 /*
     [id] => 1
     [lat] => 0
     [lon] => 1
     [accuracy] => 100001
-    [altitude] => 
-    [altitudeAccuracy] => 
-    [heading] => 
-    [speed] => 
+    [altitude] =>
+    [altitudeAccuracy] =>
+    [heading] =>
+    [speed] =>
     [name] => HoaB
-    [description] => 
+    [description] =>
     [updated] => 1462993990
 */
-        $sensors = $sensorAbstraction->getBeaconSensors();
+        if ( getVar( "beacon_log" ) !== false )
+            $sensors = $sensorAbstraction->getBeaconSensorLog( getVar( "beacon_log" ) );
+        else
+            $sensors = $sensorAbstraction->getBeaconSensors();
         // Beacon, Optional
         $beacon = Array();
         if ( $sensors && count( $sensors ) )
         {
             foreach ( $sensors as $sensor )
             {
-                if ( getVar( "debug" ) !== false )
-                    print_r( $sensor );
-
                 $apiSensor = Array(
                     "location" => Array(
-                        "lat" => floatval( $sensor[ "lat" ] ), 
-                        "lon" => floatval( $sensor[ "lon" ] ), 
+                        "lat" => floatval( $sensor[ "lat" ] ),
+                        "lon" => floatval( $sensor[ "lon" ] ),
                         "accuracy" => floatval( $sensor[ "accuracy" ] )
                     ),
                     "name" => $sensor[ "name" ],
@@ -100,8 +123,6 @@ class sensors
                     $apiSensor[ "description" ] = $sensor[ "description" ];
 
                 $beacon[] = $apiSensor;
-
-
             }
         }
         if ( count( $beacon ) )
@@ -154,10 +175,9 @@ class sensors
                     $apiSensor[ "latency" ] = $sensor[ "latency" ];
 
                 $service[] = $apiSensor;
-
-
             }
         }
+
         if ( count( $service ) )
             $apiPart[ "service" ] = $service;
 
@@ -285,9 +305,11 @@ class sensors
         global $sensorAbstraction;
 
         //Gather the information to load into the database
-        $arrAddress = getVar( "address" );
-        $arrValue   = getVar( "value" );
-        $arrType    = getVar( "type" );
+        $arrAddress  = getVar( "address" );
+        $arrLocation = getVar( "location" );
+        $arrValue    = getVar( "value" );
+        $arrType     = getVar( "type" );
+        $arrUnit     = getVar( "unit" );
 
         $arrLat         = getVar( "lat" );
         $arrLon         = getVar( "lon" );
@@ -295,10 +317,14 @@ class sensors
 
         if ( !is_array( $arrAddress ) )
             $arrAddress = Array( $arrAddress );
+        if ( !is_array( $arrLocation ) )
+            $arrLocation = Array( $arrLocation );
         if ( !is_array( $arrValue ) )
             $arrValue = Array( $arrValue );
         if ( !is_array( $arrType ) )
             $arrType = Array( $arrType );
+        if ( !is_array( $arrUnit ) )
+            $arrUnit = Array( $arrUnit );
 
         if ( !is_array( $arrLat ) )
             $arrLat = Array( $arrLat );
@@ -314,14 +340,32 @@ class sensors
             if ( !isset( $arrType[ $idx ] ) )
                 continue;
 
-            switch ( $arrType[ $idx ] )
+            $type = $arrType[ $idx ];
+            $unit = $arrUnit[ $idx ];
+
+            // NOTE: we're supporting legacy temperature sensor(s) here; oficcially we need to set the unit to "°C" and type to "temperature"
+            switch ( $type )
             {
-                case "celcius":
-                case "°C":
+                case "celcius": // legacy
+                case "°C": // legacy
+                    $unit = "celcius";
+                    $type = "temperature";
+                    break;
+            }
+
+            switch ( $type )
+            {
+                case "temperature":
+                case "door_locked":
+                case "barometer":
+                case "humidity":
+                case "beverage_supply":
+                case "power_consumption":
+                case "network_connections":
                     if ( !isset( $arrValue[ $idx ] ) )
                         continue;
 
-                    if ( !$sensorAbstraction->updateTemperatureSensor( $address, $arrValue[ $idx ], $arrType[ $idx ] ) )
+                    if ( !$sensorAbstraction->updateSensor( $address, $arrValue[ $idx ], $unit, $type, $arrLocation[ $idx ] ) )
                         $success = false;
                     break;
 
@@ -389,16 +433,22 @@ source, source, true, latency, timestamp
 
         if ( getVar( "debug" ) !== false )
             print_r( "\nUPDATING SERVICE\n". $_address ."\n" );
-        
+
         $success = true;
 
         // 'Fake' ourselves; since we can connect to the webserver, we can state we're online
-        if ( !$sensorAbstraction->updateServiceSensor( $_address, $_address, true, null ) )
+        // Except for "annex service"
+        if ( $_address !== "annex" && !$sensorAbstraction->updateServiceSensor( $_address, $_address, true, null ) )
             $success = false;
 
-        // Fetch all (tri-state) boolean fields and look for a corresponding _lag field 
-        foreach ( $_GET as $service => $state )
+        // Fetch all (tri-state) boolean fields and look for a corresponding _lag field
+        $requests = array_merge( $_GET, $_POST );
+        foreach ( $requests as $service => $state )
         {
+            // Skip debug field
+            if ( $service === "debug" )
+                continue;
+
             $state = strtolower( $state );
 
             if ( $state === "true" )
@@ -409,17 +459,17 @@ source, source, true, latency, timestamp
                 $state = null;
             else
                 continue;
-                
+
             $latency = null;
 
             echo $service . "=>" . $state ."\n";
 
-            if ( array_key_exists( $service."_lag", $_GET ) )
-                $latency = $_GET[ $service."_lag" ];
-                
+            if ( array_key_exists( $service."_lag", $requests ) )
+                $latency = $requests[ $service."_lag" ];
+
             if ( !$sensorAbstraction->updateServiceSensor( $service, $_address, $state, $latency ) )
                 $success = false;
-                
+
         }
 
         return $success;

@@ -9,7 +9,7 @@
 class SensorAbstraction
 {
     private $dbConn = null;
-    
+
     //
     // Public functions
     //
@@ -27,15 +27,20 @@ class SensorAbstraction
         if ($this->dbConn->connect_error) {
             return false;
         }
-        
+
         $this->dbConn->set_charset( "utf8mb4" );
         return true;
     }
-    
+
+    public function getTemperatureSensors( )
+    {
+        return $this->getSensors( "temperature" );
+    }
+
     //
     // Temperature
     //
-    public function getTemperatureSensors( )
+    public function getSensors( $_type )
     {
         if(is_null($this->dbConn))
         {
@@ -46,7 +51,7 @@ class SensorAbstraction
             return null;
         }
 
-        $dbResult = $this->dbConn->query("
+        $stmt = $this->dbConn->prepare("
             SELECT `id`,
             `value`,
             `unit`,
@@ -60,20 +65,52 @@ class SensorAbstraction
             LIMIT 0,100
         ");
 
-        if( $dbResult->num_rows == 0 )
+        if ( !$stmt )
         {
-            if ( getVar( "debug" ) !== false )
-                print_r( "temperature: no result\n" );
-
-            return null;
+            return false;
         }
         else
         {
-            $sensors = Array();
-            while ( $sensor = $dbResult->fetch_assoc( ) )
+            $stmt->execute();
+
+            // store result
+            $stmt->store_result();
+
+            if ( $stmt->num_rows == 0 )
             {
+                //num_rows
+                if ( getVar( "debug" ) !== false )
+                    print_r( $_type . ": no result\n" );
+
+                return null;
+            }
+
+            // fetch values (assoc)
+            $meta = $stmt->result_metadata();
+
+            while ($column = $meta->fetch_field())
+            {
+               $bindVarsArray[] = &$results[$column->name];
+            }
+
+            call_user_func_array(array($stmt, 'bind_result'), $bindVarsArray);
+
+            $sensors = Array();
+            while ( $stmt->fetch() )
+            {
+                $sensor = [];
+                foreach ( $results as $key => $value )
+                    $sensor[ $key ] = $value;
+                //$sensor = array_merge( $results );
                 $sensors[] = $sensor;
             }
+
+            // free result
+            $stmt->free_result();
+
+            // close statement
+            $stmt->close();
+
             return $sensors;
         }
 
@@ -81,7 +118,7 @@ class SensorAbstraction
         return null;
     }
 
-    public function getTemperatureSensorByName( $_name )
+    public function getSensorByName( $_name )
     {
         if(is_null($this->dbConn))
         {
@@ -110,7 +147,7 @@ class SensorAbstraction
         if( $dbResult->num_rows == 0 )
         {
             if ( getVar( "debug" ) !== false )
-                print_r( "Temperature no result:".$_name."\n" );
+                print_r( "Sensor no result:".$_name."\n" );
 
             return null;
         }
@@ -119,10 +156,10 @@ class SensorAbstraction
             return $dbResult->fetch_assoc();
         }
     }
-    
-    public function updateTemperatureSensor( $_strAddress, $_nValue, $_strType )
+
+    public function updateSensor( $_strAddress, $_nValue, $_strUnit, $_strType, $_strLocation = "ACKspace" )
     {
-        $sensorData = $this->getTemperatureSensorByName( $_strAddress );
+        $sensorData = $this->getSensorByName( $_strAddress );
 
         if ( getVar( "debug" ) !== false )
         {
@@ -136,25 +173,29 @@ class SensorAbstraction
             $stmt = $this->dbConn->prepare(
                 "INSERT INTO  `ackspace_spaceAPI`.`probes` (
                     `name`,
+                    `location`,
                     `value`,
                     `unit`,
+                    `type`,
                     `updated`
                 )
                 VALUES (
                     ?,
                     ?,
                     ?,
+                    ?,
+                    ?,
                     CURRENT_TIMESTAMP
                 );"
             );
-        
+
             if ( !$stmt )
             {
                 return false;
             }
             else
             {
-                $stmt->bind_param( "sds", $_strAddress, $_nValue, $_strType );
+                $stmt->bind_param( "ssdss", $_strAddress, $_strLocation, $_nValue, $_strUnit, $_strType );
                 $stmt->execute( );
             }
 
@@ -162,7 +203,7 @@ class SensorAbstraction
 
         } else {
             // Change last updated time
-            $q = "UPDATE `probes` SET `value` = ".$_nValue.", `unit` = '".$_strType."', `updated` = CURRENT_TIMESTAMP WHERE `id` = ".$sensorData["id"]." LIMIT 1";
+            $q = "UPDATE `probes` SET `value` = ".$_nValue.", `unit` = '".$_strUnit."', `updated` = CURRENT_TIMESTAMP WHERE `id` = ".$sensorData["id"]." LIMIT 1";
             $dbResult = $this->dbConn->query( $q );
 
             if ( getVar( "debug" ) !== false )
@@ -202,6 +243,73 @@ class SensorAbstraction
             ORDER BY `beacons`.`id` DESC
             LIMIT 0,100
         ");
+
+        if( $dbResult->num_rows == 0 )
+        {
+            if ( getVar( "debug" ) !== false )
+                print_r( "Beacon: no result\n" );
+
+            return null;
+        }
+        else
+        {
+            $sensors = Array();
+            while ( $sensor = $dbResult->fetch_assoc( ) )
+            {
+                $sensors[] = $sensor;
+            }
+            return $sensors;
+        }
+
+        // Failed
+        return null;
+    }
+
+    public function getBeaconSensorLog( $_strAddress )
+    {
+        if(is_null($this->dbConn))
+        {
+            if ( getVar( "debug" ) !== false )
+                print_r( "no connection" );
+
+            // Database connection not initialised
+            return null;
+        }
+
+        $stmt = $this->dbConn->prepare("
+            SELECT `id`,
+            `lat`,
+            `lon`,
+            `accuracy`,
+            `altitude`,
+            `altitudeAccuracy`,
+            `heading`,
+            `speed`,
+            `name`,
+            `description`,
+            UNIX_TIMESTAMP(`updated`) AS `updated`
+            FROM `beacon_log`
+            WHERE `name` = ?
+            ORDER BY `beacon_log`.`id` DESC
+            LIMIT 0,20000
+        ");
+
+        if ( !$stmt )
+        {
+            return false;
+        }
+        else
+        {
+            $stmt->bind_param( "s", $_strAddress );
+            $stmt->execute( );
+        }
+
+        /* store result */
+        //$stmt->store_result();
+        $dbResult = $stmt->get_result();
+
+        // Close off previous statement
+        //$stmt->close( );
 
         if( $dbResult->num_rows == 0 )
         {
@@ -265,7 +373,7 @@ class SensorAbstraction
             return $dbResult->fetch_assoc();
         }
     }
-    
+
     public function updateBeaconSensor( $_nLat, $_nLon, $_nAccuracy, $_nAltitude, $_nAltitudeAccuracy, $_nHeading, $_nSpeed, $_strName )
     {
         $sensorData = $this->getBeaconSensorByName( $_strName );
@@ -275,6 +383,42 @@ class SensorAbstraction
             print_r( "sensor data:" );
             print_r( $sensorData );
             print_r( "EOD" );
+        }
+
+        // NEW: add a log entry
+        //if ( true )
+        if ( $sensorData === null )
+        {
+            $stmt = $this->dbConn->prepare(
+                "INSERT INTO  `ackspace_spaceAPI`.`beacon_log` (
+                    `lat`,
+                    `lon`,
+                    `accuracy`,
+                    `altitude`,
+                    `altitudeAccuracy`,
+                    `heading`,
+                    `speed`,
+                    `name`,
+                    `updated`
+                )
+                VALUES (
+                    ?,
+                    ?,
+                    ?,
+                    ?,
+                    ?,
+                    ?,
+                    ?,
+                    ?,
+                    CURRENT_TIMESTAMP
+                );"
+            );
+
+            if ( $stmt )
+            {
+                $stmt->bind_param( "ddididds", $_nLat, $_nLon, $_nAccuracy, $_nAltitude, $_nAltitudeAccuracy, $_nHeading, $_nSpeed, $_strName );
+                $stmt->execute( );
+            }
         }
 
         // Add the sensor data if we didn't find anything. Update otherwise.
@@ -304,7 +448,7 @@ class SensorAbstraction
                     CURRENT_TIMESTAMP
                 );"
             );
-        
+
             if ( !$stmt )
             {
                 return false;
@@ -404,7 +548,7 @@ class SensorAbstraction
                 LIMIT 1
             "
         );
-    
+
         $num_rows = 0;
 
         if ( !$stmt )
@@ -532,7 +676,7 @@ class SensorAbstraction
             /* correct per barcode */
             /* TODO: ignore value before audit date */
             $stmt = $this->dbConn->prepare(
-                "INSERT INTO `ackspace_spaceAPI`.`corrections` ( item_id, amount ) 
+                "INSERT INTO `ackspace_spaceAPI`.`corrections` ( item_id, amount )
                 SELECT b.item_id, -1
                 FROM barcodes b
                 LEFT JOIN units u ON u.id=b.unit_id
@@ -613,7 +757,9 @@ class SensorAbstraction
 
     public function getServiceSensorByName( $_name, $_source )
     {
-        /*
+        // Uncomment if you want the entry to always be added to the table
+        //return null;
+
         if(is_null($this->dbConn))
         {
             if ( getVar( "debug" ) !== false )
@@ -623,7 +769,7 @@ class SensorAbstraction
             return null;
         }
 
-        $dbResult = $this->dbConn->query("
+        $stmt = $this->dbConn->prepare("
             SELECT `id`,
             `name`,
             `source`,
@@ -631,28 +777,63 @@ class SensorAbstraction
             `latency`,
             UNIX_TIMESTAMP(`updated`) AS `updated`
             FROM `services`
-            WHERE `name` = '".$_name."'
-            AND `source` = '".$_source."'
+            WHERE `name` = ?
+            AND `source` = ?
             ORDER BY `id` DESC
             LIMIT 0,1
         ");
 
-        if( $dbResult->num_rows == 0 )
+        if ( !$stmt )
         {
-            if ( getVar( "debug" ) !== false )
-                print_r( "Service: no result:".$_name."\n" );
-
-            return null;
+            return false;
         }
         else
         {
-            return $dbResult->fetch_assoc();
-        }
-        */
+            $stmt->bind_param( "ss", $_name, $_source );
+            $stmt->execute();
 
+            // store result
+            $stmt->store_result();
+
+            if ( $stmt->num_rows == 0 )
+            {
+                //num_rows
+                if ( getVar( "debug" ) !== false )
+                    print_r( ": no result\n" );
+
+                return null;
+            }
+
+            // fetch values (assoc)
+            $meta = $stmt->result_metadata();
+
+            while ($column = $meta->fetch_field())
+            {
+               $bindVarsArray[] = &$results[$column->name];
+            }
+
+            call_user_func_array(array($stmt, 'bind_result'), $bindVarsArray);
+
+            $datum = [];
+            if ( $stmt->fetch() )
+            {
+                foreach ( $results as $key => $value )
+                    $datum[ $key ] = $value;
+            }
+
+            // free result
+            $stmt->free_result();
+
+            // close statement
+            $stmt->close();
+
+            return $datum;
+        }
+
+        // Failed
         return null;
     }
-    
+
     public function updateServiceSensor( $_strName, $_strSource, $_bState, $_nLatency )
     {
         $sensorData = $this->getServiceSensorByName( $_strName, $_strSource );
@@ -683,7 +864,7 @@ class SensorAbstraction
                     CURRENT_TIMESTAMP
                 );"
             );
-        
+
             if ( !$stmt )
             {
                 return false;
@@ -698,17 +879,29 @@ class SensorAbstraction
 
         } else {
             // Change last updated time
+            $stmt = $this->dbConn->prepare(
+                "UPDATE  `services` SET
+                    `name` = ?,
+                    `source` = ?,
+                    `status` = ?,
+                    `latency` = ?,
+                    `updated` = CURRENT_TIMESTAMP
+                    WHERE `id` = ?
+                    LIMIT 1
+                "
+            );
 
-            $q = "UPDATE `services` SET `name` = ".$_strName.",".
-                                      "`source` = ".$_strSource.",".
-                                      "`status` = ".$_bState.",".
-                                      "`latency` = ".$_nLatency.",".
-                                      "`updated` = CURRENT_TIMESTAMP WHERE `id` = ".$sensorData["id"]." LIMIT 1";
-            $dbResult = $this->dbConn->query( $q );
+            if ( !$stmt )
+            {
+                return false;
+            }
+            else
+            {
+                $stmt->bind_param( "sssdd", $_strName, $_strSource, $_bState, $_nLatency, $sensorData["id"] );
+                $stmt->execute( );
+            }
 
-            if ( getVar( "debug" ) !== false )
-                print_r( $q );
-            return $dbResult;
+            return true;
         }
         return null;
     }
