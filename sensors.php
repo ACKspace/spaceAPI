@@ -139,7 +139,7 @@ class sensors
                     print_r( $sensor );
 
                 $apiSensor = Array(
-                    "value"         => $sensor[ "value" ],
+                    "value"         => intval($sensor[ "value" ]),
                     "unit"          => $sensor[ "unit" ],
                     "location"      => $sensor[ "location" ],
                     "name"          => $sensor[ "name" ],

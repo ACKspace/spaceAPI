@@ -7,7 +7,7 @@ class spacefed
         // Mandatory
         $apiPart["spacenet"] = true;
         $apiPart["spacesaml"] = false;
-        $apiPart["spacephone"] = false;
+        $apiPart["spacephone"] = true;
 
         // Optional
 

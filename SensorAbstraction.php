@@ -897,7 +897,7 @@ class SensorAbstraction
             }
             else
             {
-                $stmt->bind_param( "sssdd", $_strName, $_strSource, $_bState, $_nLatency, $sensorData["id"] );
+                $stmt->bind_param( "ssiid", $_strName, $_strSource, $_bState, $_nLatency, $sensorData["id"] );
                 $stmt->execute( );
             }
 

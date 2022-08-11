@@ -58,7 +58,7 @@ class StateAbstraction
 			$stateInfo = $dbResult->fetch_assoc();
 
 			//check if timed out
-			if((time() - $stateInfo['updated']) > 60)
+			if((time() - $stateInfo['updated']) > 360)
 			{
                 // Set last known timestamp
                 $fallBack['created'] = $stateInfo['updated'];
