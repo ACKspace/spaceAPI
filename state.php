@@ -67,6 +67,11 @@ class state
     {
         global $stateAbstraction;
 
+        // Store the IP of the client that triggers the state change
+        // NOTE: depending on the connection, we might want to use HTTP_X_FORWARDED_FOR as well
+        $ip = $_SERVER['REMOTE_ADDR'];
+        file_put_contents( "ip.txt", $ip);
+
         // Read the state parameter
         switch ( getVar( "state" ) )
         {

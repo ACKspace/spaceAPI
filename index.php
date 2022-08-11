@@ -34,10 +34,7 @@ include( $_SERVER['DOCUMENT_ROOT']."/../spaceAPI_config.php" );
 // Send headers immediately
 header( "Access-Control-Allow-Origin: *" );
 header( "Access-Control-Allow-Methods: GET" );
-header( "Content-Type: application/json" );
-header( 'Content-Type: text/javascript; charset="UTF-8"' );
-//header( "Content-Type: text/html; charset=utf-8" );
-
+header( 'Content-Type: application/json; charset="UTF-8"' );
 
 $stateAbstraction = new StateAbstraction();
 $stateAbstraction->init();
@@ -50,15 +47,17 @@ $sensorAbstraction->init();
 // Note: lat/lng was: 50.8924807,5.9712384: just outside of the building
 $spaceAPIjson = <<<EOF
 {
+    "api_compatibility": [ "13", "14" ],
     "api" : "0.13",
     "space" : "ACKspace",
-    "logo" : "https://ackspace.nl/w/images/3/3b/Wiki_logo.png",
+    "logo" : "https://ackspace.nl/w/images/thumb/8/83/ACKlogo.png/600px-ACKlogo.png",
     "url" : "https://ackspace.nl/",
     "location" :
     {
         "address" : "Kloosterweg 1, 6412 CN Heerlen",
         "lat" : 50.8924622,
         "lon" : 5.9712601,
+        "timezone": "Europe/Amsterdam",
         "ext_floor" : 4,
         "ext_room" : "L406"
     },
@@ -69,14 +68,11 @@ $spaceAPIjson = <<<EOF
     "contact" :
     {
         "email" : "contact@ackspace.nl",
-        "irc" : "irc://freenode/#ACKspace",
-        "keymaster" :
-        [
-          "31457112345, extension 1333"
-        ],
+        "issue_mail" : "aW5mb0BhY2tzcGFjZS5ubA==",
+        "irc" : "ircs://irc.libera.chat:6697/ACKspace",
         "ml" : "info@lists.ackspace.nl",
         "phone" : "31457112345",
-        "sip" : "31457112345@sip1.budgetphone.nl",
+        "sip" : "sip:31457112345@sip1.budgetphone.nl",
         "twitter" : "@ACKspace"
     },
     "issue_report_channels" :
@@ -211,6 +207,14 @@ if ( getVar( "prettyprint" ) !== false )
     $flags |= JSON_PRETTY_PRINT;
 if ( getVar( "debug" ) !== false )
     echo "======= JSON SPACE API =======\n";
+
+// Include the IP address of the last client that changed the state
+if ( file_exists( "ip.txt" ) )
+{
+    $IP = file_get_contents( "ip.txt" );
+    if ( $IP !== false )
+        $spaceAPI[ "ext_ip" ] = $IP;
+}
 
 $result = json_encode( $spaceAPI, $flags );
 
