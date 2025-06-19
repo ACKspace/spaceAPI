@@ -1,223 +1,346 @@
 <?php
-    if ( !extension_loaded( "mysqli" ) )
-        die( '{ "error" : "no mysqli extension available" }' );
+declare(strict_types = 1);
 
-    // Include database credentials
-    include( $_SERVER['DOCUMENT_ROOT']."/../spaceAPI_config.php" );
+class Hour extends DateTimeImmutable {
+	const DEFAULT_FORMAT = 'Y-m-d H:i:s';
+	
+	private $string         = null;
+	public $hour            = null;
+	public static $timezone = null;	
+	public function __construct(string $string) {
+		$this->string     = $string;
+		$this->hourNumber = intval(substr($this->string, 11, 2));
+		if (is_null(self::$timezone)) {
+			self::$timezone = new DateTimeZone('UTC'); 
+		}
+		parent::__construct($string, self::$timezone);
+	}
+	
+	public static function now(): Hour {
+		$now       = new DateTime();
+		$nowString = $now->format(self::DEFAULT_FORMAT);
+		$hour      = new static($nowString);
+		return $hour;
+	}
 
-    $dbConn = new mysqli($spaceApi_db_servername, $spaceApi_db_username, $spaceApi_db_password, $spaceApi_db_dbname);
-    // Check connection
-    if ($dbConn->connect_error)
-    {
-        die( '{ "error" : "database connection error" }' );
-    }
-
-    $month = getVar( "month" );
-
-    if ( getVar( "debug" ) !== false )
-    {
-        echo "<pre>debug\n";
-
-        print_r( $month );
-    }
-
-    if ( $month === false )
-    {
-        $stmt = $dbConn->prepare(
-            "SELECT state, UNIX_TIMESTAMP( created ), UNIX_TIMESTAMP( updated )
-            FROM `ackspace_spaceAPI`.`statechanges`
-            WHERE (DATE( created ) <= NOW() AND DATE( created ) >= DATE_SUB( NOW(), INTERVAL 7 DAY))
-            OR (DATE( updated ) <= NOW() AND DATE( updated ) >= DATE_SUB( NOW(), INTERVAL 7 DAY))"
-        );
-
-        if ( !$stmt )
-            die( '{ "error" : "database query error" }' );
-    }
-    else
-    {
-        $monthEnd = $month + 1;
-        $stmt = $dbConn->prepare(
-            "SELECT state, UNIX_TIMESTAMP( created ), UNIX_TIMESTAMP( updated )
-            FROM `ackspace_spaceAPI`.`statechanges`
-            WHERE (DATE( created ) <= DATE_SUB( NOW(), INTERVAL ? MONTH) AND DATE( created ) >= DATE_SUB( NOW(), INTERVAL ? MONTH))
-            OR    (DATE( updated ) <= DATE_SUB( NOW(), INTERVAL ? MONTH) AND DATE( updated ) >= DATE_SUB( NOW(), INTERVAL ? MONTH))"
-        );
-
-        if ( !$stmt )
-            die( '{ "error" : "database query error" }' );
-
-        $stmt->bind_param( "iiii", $month, $monthEnd, $month, $monthEnd );
-    }
-
-    $stmt->execute( );
-    $stmt->store_result( );
-
-    //if($stmt->num_rows == 0)
-    $stmt->bind_result( $state, $created, $updated );
-
-    $states = Array();
-    while ( $stmt->fetch() )
-    {
-        $states[] = Array( "state" => $state, "created" => $created, "updated" => $updated );
-    }
-
-    echo json_encode( $states );
-
-    if ( getVar( "debug" ) !== false )
-    {
-        print_r( $states );
-        echo "</pre>";
-    }
-
-    exit;
-
-
-
-function getVar( $_name, $_bGet = true, $_bPost = true, $_bSession = false )
-{
-    if ( $_bGet && array_key_exists( $_name, $_GET ) )
-      return $_GET[ $_name ];
-
-    if ( $_bPost && array_key_exists( $_name, $_POST ) )
-      return $_POST[ $_name ];
-
-    if ( $_bSession && array_key_exists( $_name, $_SESSION ) )
-      return $_SESSION[ $_name ];
-
-    return false;
+	public function previousHour(): Hour {
+		$format     = 'Y-m-d H:00:00';
+		$hourString = $this->format($format);
+		$hour       = new static($hourString);
+		return $hour;
+	}
+	
+	public function nextHour(): Hour {
+		$hour           = $this->previousHour();
+		$nextHour       = $hour->add(new DateInterval('PT1H'));
+		$nextHourString = $nextHour->format(self::DEFAULT_FORMAT);
+		$nextHourObject = new static($nextHourString);
+		return $nextHourObject;
+	}
+	
+	public function equalHours($hour): bool {
+		$equals = (
+			substr_compare($this->string, $hour->string, 0, 13) === 0
+		);
+		return $equals;
+	}
+	
+	public function differenceInSeconds(Hour $datetime): int {
+		$difference          = $this->diff($datetime);
+		$differenceInSeconds =
+			$difference->h * 3600 + // 60 * 60
+			$difference->i * 60   +
+			$difference->s
+		;
+		return $differenceInSeconds;
+	}
+	
+	public function dayNumber(): string {
+		$format    = 'N';
+		$dayNumber = $this->format($format);
+		return $dayNumber;
+	}
+	
+	public function __toString(): string {
+		return $this->string;
+	}
 }
 
-echo <<< EOF
-[
-	{
-		"state" : 1,
-		"created" : "2016-08-25 12:46:45",
-		"wc" : 3,
-		"tc" : "12:46:45",
-		"updated" : "2016-08-25 13:48:50",
-		"wu" : 3,
-		"tu" : "13:48:50"
-	}, {
-		"state" : 0,
-		"created" : "2016-08-25 13:49:03",
-		"wc" : 3,
-		"tc" : "13:49:03",
-		"updated" : "2016-08-26 10:37:51",
-		"wu" : 4,
-		"tu" : "10:37:51"
-	}, {
-		"state" : 1,
-		"created" : "2016-08-26 10:37:52",
-		"wc" : 4,
-		"tc" : "10:37:52",
-		"updated" : "2016-08-26 17:54:01",
-		"wu" : 4,
-		"tu" : "17:54:01"
-	}, {
-		"state" : 0,
-		"created" : "2016-08-26 17:54:09",
-		"wc" : 4,
-		"tc" : "17:54:09",
-		"updated" : "2016-08-27 07:38:33",
-		"wu" : 5,
-		"tu" : "07:38:33"
-	}, {
-		"state" : 1,
-		"created" : "2016-08-27 07:38:46",
-		"wc" : 5,
-		"tc" : "07:38:46",
-		"updated" : "2016-08-27 14:51:56",
-		"wu" : 5,
-		"tu" : "14:51:56"
-	}, {
-		"state" : 0,
-		"created" : "2016-08-27 14:51:59",
-		"wc" : 5,
-		"tc" : "14:51:59",
-		"updated" : "2016-08-28 07:38:39",
-		"wu" : 6,
-		"tu" : "07:38:39"
-	}, {
-		"state" : 1,
-		"created" : "2016-08-28 07:38:49",
-		"wc" : 6,
-		"tc" : "07:38:49",
-		"updated" : "2016-08-28 16:10:58",
-		"wu" : 6,
-		"tu" : "16:10:58"
-	}, {
-		"state" : 0,
-		"created" : "2016-08-28 16:11:11",
-		"wc" : 6,
-		"tc" : "16:11:11",
-		"updated" : "2016-08-29 08:49:23",
-		"wu" : 0,
-		"tu" : "08:49:23"
-	}, {
-		"state" : 1,
-		"created" : "2016-08-29 08:49:32",
-		"wc" : 0,
-		"tc" : "08:49:32",
-		"updated" : "2016-08-29 19:25:41",
-		"wu" : 0,
-		"tu" : "19:25:41"
-	}, {
-		"state" : 0,
-		"created" : "2016-08-29 19:25:53",
-		"wc" : 0,
-		"tc" : "19:25:53",
-		"updated" : "2016-08-30 11:24:38",
-		"wu" : 1,
-		"tu" : "11:24:38"
-	}, {
-		"state" : 1,
-		"created" : "2016-08-30 11:24:47",
-		"wc" : 1,
-		"tc" : "11:24:47",
-		"updated" : "2016-08-30 11:24:47",
-		"wu" : 1,
-		"tu" : "11:24:47"
-	}, {
-		"state" : 0,
-		"created" : "2016-08-30 11:25:00",
-		"wc" : 1,
-		"tc" : "11:25:00",
-		"updated" : "2016-08-30 11:29:42",
-		"wu" : 1,
-		"tu" : "11:29:42"
-	}, {
-		"state" : 1,
-		"created" : "2016-08-30 11:29:48",
-		"wc" : 1,
-		"tc" : "11:29:48",
-		"updated" : "2016-08-30 12:32:55",
-		"wu" : 1,
-		"tu" : "12:32:55"
-	}, {
-		"state" : 0,
-		"created" : "2016-08-30 12:33:06",
-		"wc" : 1,
-		"tc" : "12:33:06",
-		"updated" : "2016-08-30 13:00:21",
-		"wu" : 1,
-		"tu" : "13:00:21"
-	}, {
-		"state" : 1,
-		"created" : "2016-08-30 13:00:27",
-		"wc" : 1,
-		"tc" : "13:00:27",
-		"updated" : "2016-08-30 21:04:11",
-		"wu" : 1,
-		"tu" : "21:04:11"
-	}, {
-		"state" : 0,
-		"created" : "2016-08-30 21:04:17",
-		"wc" : 1,
-		"tc" : "21:04:17",
-		"updated" : "2016-08-31 02:50:31",
-		"wu" : 2,
-		"tu" : "02:50:31"
+class HourPeriod {
+	public $hour    = null;
+	public $seconds = null;
+	public function __construct(Hour $hour, int $seconds) {
+		$this->hour    = $hour;
+		$this->seconds = $seconds;
 	}
-]
-EOF
-?>
+
+	const TOTAL_NUMBER_OF_SECONDS = 60 * 60;	
+	public static function createFullHour(Hour $hour) {
+		$seconds    = self::TOTAL_NUMBER_OF_SECONDS;
+		$hourPeriod = new static($hour, $seconds);
+		return $hourPeriod;
+	}
+	
+	public static function createEmptyHour(Hour $hour) {
+		$seconds    = 0;
+		$hourPeriod = new static($hour, $seconds);
+		return $hourPeriod;
+	}
+	
+	public static function createByDifference(
+		Hour $hour, Hour $start, Hour $end
+	) {
+		$difference = $start->differenceInSeconds($end);
+		$hourPeriod = new static($hour, $difference);
+		return $hourPeriod;
+	}
+	
+	public function merge(HourPeriod $hourPeriod) {
+		$this->seconds += $hourPeriod->seconds;
+		return $this;
+	}
+}
+
+class HourPeriodList extends ArrayObject {
+	public function seconds() {
+		$seconds = 0;
+		$count   = $this->count();
+		if ($count > 0) {
+			$total   = $this->total(); 
+			$divisor = $count * HourPeriod::TOTAL_NUMBER_OF_SECONDS;
+			$seconds = $total / $divisor;
+		}
+		return $seconds;		
+	}
+	
+	public function total(): int {
+		$seconds = 0;
+		foreach($this as $hourPeriod) {
+			$seconds += $hourPeriod->seconds;
+		}
+		return $seconds;
+	}
+}
+
+class AverageList extends ArrayObject {
+	public function average(): float {
+		$average = array_sum((array) $this) / count($this);
+		return $average;
+	}
+}
+
+class HourPeriodGroup {
+	private $dictionary = null;
+	private $days       = null;
+	private $hours      = null;
+	public function __construct(string $interval) {
+		$this->dictionary = array();
+		$this->interval($interval);
+	}
+	
+	private function interval(string $interval): void {
+		$now            = Hour::now();
+		$intervalObject = DateInterval::createFromDateString($interval);
+		$timestamp      = $now->sub($intervalObject)->nextHour();		
+		$rows           = Database::rowsFromDatebase($timestamp);
+		$this->processRows($rows);
+	}	
+
+	public function processRows(array $rows): void {
+		$previousRow = null;
+		foreach($rows as $row) {
+			if (!is_null($previousRow)) {
+				$this->processStartEnd(
+					$previousRow->created,
+					$row->created        ,
+					$previousRow->state
+				);
+			}
+			$previousRow = $row;
+		}
+	}	
+	private function processStartEnd(
+		string $startTimestamp, string $endTimestamp, string $stateString
+	): void {
+		$start = new Hour($startTimestamp);
+		$end   = new Hour($endTimestamp  );
+		$state = intval($stateString);
+		if ($start->equalHours($end)) {
+			$startHour = $start->previousHour();			
+			$this->addHourPeriod($startHour, $state, $start, $end);
+		} else {
+			$this->processBeyondMidnight($start, $end, $state);
+		}
+	}
+	private function processBeyondMidnight(
+		Hour $start, Hour $end, int $state
+	): void {
+		$startHour     = $start->previousHour();	
+		$startNextHour = $start->nextHour();
+		$this->addHourPeriod($startHour, $state, $start, $startNextHour);
+		
+		$endHour = $end->previousHour();				
+		$hour    = $startNextHour;
+		while($hour < $endHour) {
+			$this->addHourPeriod($hour, $state);
+			$hour = $hour->nextHour();
+		}
+		
+		$this->addHourPeriod($endHour, $state, $end, $endHour);
+	}
+
+	const STATE_CLOSED = 0;
+	const STATE_OPEN   = 1;
+	private function addHourPeriod(
+		Hour $hour        , int  $state,
+		Hour $start = null, Hour $end   = null
+	): void {
+		$hourPeriod = (($state === self::STATE_CLOSED)
+			? HourPeriod::createEmptyHour($hour)
+			: (is_null($start)
+				? HourPeriod::createFullHour($hour)
+				: HourPeriod::createByDifference($hour, $start, $end)
+			)
+		);
+		$hash = (string) $hour;
+		if (array_key_exists($hash, $this->dictionary)) {
+			$hourPeriod = $hourPeriod->merge($this->dictionary[$hash]);
+		}
+		$this->dictionary[$hash] = $hourPeriod;
+	}
+	
+	private function days(): array {
+		$days = array_fill(1, 7, array_fill(0, 24, null));
+		foreach($this->dictionary as $hourPeriod) {
+			$dayNumber  = $hourPeriod->hour->dayNumber();
+			$hourNumber = $hourPeriod->hour->hourNumber;
+			if (!isset($days[$dayNumber][$hourNumber])) {
+				$days[$dayNumber][$hourNumber] = new HourPeriodList();
+			}
+			$days[$dayNumber][$hourNumber][] = $hourPeriod;
+		}
+		return $days;
+	}
+	
+	private $statistics       = null;
+	private $totalPercentages = null;
+	private $hourPercentages  = null;
+	private $dayList          = null;
+	public function statistics(): array {
+		$this->statistics       = array();
+		$this->totalPercentages = new AverageList();
+		$this->hourPercentages  = array();	
+		
+		$days = $this->days();
+		foreach($days as $dayNumber => $hours) {
+			$this->dayList = new AverageList();
+			foreach($hours as $hourNumber => $hourPeriodList) {
+				$this->seconds($hourNumber, $hourPeriodList);
+			}
+			$this->dayListAverage($dayNumber);
+		}
+		
+		$this->hoursAverage();
+		$this->round();		
+		return $this->statistics;
+	}
+	private function seconds(int $hourNumber, HourPeriodList $hourPeriodList) {
+		$seconds = $hourPeriodList->seconds();
+		$this->dayList[$hourNumber] = $seconds;
+		$this->totalPercentages[]   = $seconds;
+		if (!isset($this->hourPercentages[$hourNumber])) {
+			$this->hourPercentages[$hourNumber] = new AverageList();
+		}		
+		$this->hourPercentages[$hourNumber][] = $seconds;
+	}
+	private function dayListAverage($dayNumber) {
+		$this->statistics[$dayNumber]   = (array) $this->dayList;
+		$this->statistics[$dayNumber][] = $this->dayList->average();
+	}
+	private function hoursAverage() {
+		$hoursAverage = array();
+		foreach($this->hourPercentages as $hourNumber => $percentages) {
+			$hoursAverage[$hourNumber] = $percentages->average();
+		}
+		$hoursAverage[]     = $this->totalPercentages->average();
+		$this->statistics[] = $hoursAverage;		
+	}
+	private function round() {
+		array_walk_recursive($this->statistics, function(&$value) {
+			$value = round($value, 4);
+		});	
+	}
+	
+	private function json(): void {
+		$statistics = $this->statistics();
+		$jsonString = json_encode($statistics, JSON_FORCE_OBJECT);
+		header('Content-Type: application/json');		
+		echo($jsonString);
+	}
+
+	public static function handleRequest(): void {	
+		$intervalList = array(
+			'1week'  => '1 week'  ,
+			'1month' => '1 month' ,
+			'3month' => '3 months',
+			'1year'  => '1 year'  ,
+			'2year'  => '2 years' ,
+		);
+		$intersect = array_intersect(
+			array_keys($intervalList), array_keys($_GET)
+		);
+		$intervalKey = reset($intersect);
+		if ($intervalKey !== false) {
+			$interval = $intervalList[$intervalKey];		
+			$group    = new static($interval);
+			$group->json();
+		}
+	}
+}
+
+class Database extends PDO {
+	private function __construct() {
+		include_once($_SERVER['DOCUMENT_ROOT'] . '/../spaceAPI_config.php');
+		$dsn =
+			'mysql:dbname=' . $spaceApi_db_dbname . 
+			';host='        . $spaceApi_db_servername
+		;
+		parent::__construct(
+			$dsn, $spaceApi_db_username, $spaceApi_db_password
+		);
+	}
+
+	public static function rowsFromDatebase(Hour $timestamp): array {
+		$connection = new static();
+		$sql = "
+			select * from (
+				select created, state
+				from statechanges
+				where created = (
+					select max(created)
+					from statechanges
+					where created < ?
+				)
+				union all
+				select created, state
+				from statechanges
+				where created >= ?
+				union all
+				select now(), null
+			) as `table`
+			order by created
+		";
+		$bindings = array($timestamp, $timestamp);
+		$statement = $connection->prepare($sql);
+		$statement->execute($bindings);
+		$result = $statement->fetchAll(PDO::FETCH_CLASS);
+		if (count($result) > 0) {
+			if ($result[0]->created < $timestamp) {
+				$result[0]->created = (string) $timestamp;
+			}
+		}
+		return $result;
+	}
+}
+
+HourPeriodGroup::handleRequest();
