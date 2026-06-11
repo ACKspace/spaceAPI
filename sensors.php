@@ -143,9 +143,9 @@ class sensors
                     "unit"          => $sensor[ "unit" ],
                     "location"      => $sensor[ "location" ],
                     "name"          => $sensor[ "name" ],
-                    "ext_lastchange" => (int)$sensor[ "updated" ]
+                    "ext_lastchange" => ( isset($sensor[ "updated" ]) ? (int)$sensor[ "updated" ] : 0 )
                 );
-                if ( !is_null( $sensor[ "description" ] ) )
+                if ( isset( $sensor[ "description" ] ) )
                     $apiSensor[ "description" ] = $sensor[ "description" ];
 
                 $beverage_supply[] = $apiSensor;
@@ -363,7 +363,7 @@ class sensors
                 case "power_consumption":
                 case "network_connections":
                     if ( !isset( $arrValue[ $idx ] ) )
-                        continue;
+                        continue 2;  // use "continue 2" to continue the loop. Inside of this switch statement, "continue" would otherwise just do the same as "break"
 
                     if ( !$sensorAbstraction->updateSensor( $address, $arrValue[ $idx ], $unit, $type, $arrLocation[ $idx ] ) )
                         $success = false;
@@ -374,11 +374,11 @@ class sensors
                         print_r( "UPDATING BEACON\n".$arrLat[ $idx ]."##".$arrLon[ $idx ]."##".$arrAccuracy[ $idx ]."##\n" );
 
                     if ( !isset( $arrLat[ $idx ] ) )
-                        continue;
+                        continue 2;  // use "continue 2" to continue the loop. Inside of this switch statement, "continue" would otherwise just do the same as "break"
                     if ( !isset( $arrLon[ $idx ] ) )
-                        continue;
+                        continue 2;
                     if ( !isset( $arrAccuracy[ $idx ] ) )
-                        continue;
+                        continue 2;
 
                     if ( !$sensorAbstraction->updateBeaconSensor( $arrLat[ $idx ], $arrLon[ $idx ], $arrAccuracy[ $idx ], null, null, null, null, $address ) )
                         $success = false;

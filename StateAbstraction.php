@@ -12,8 +12,8 @@ class StateAbstraction
         if ( !extension_loaded( "mysqli" ) )
             return false;
 
-        // Include database credentials
-        include( $_SERVER['DOCUMENT_ROOT']."/../spaceAPI_config.php" );
+        // Include database credentials, suppressing errors because it redefines a "const"
+        @include( $_SERVER['DOCUMENT_ROOT']."/../spaceAPI_config.php" );
 
         $this->dbConn = new mysqli($spaceApi_db_servername, $spaceApi_db_username, $spaceApi_db_password, $spaceApi_db_dbname);
         // Check connection
